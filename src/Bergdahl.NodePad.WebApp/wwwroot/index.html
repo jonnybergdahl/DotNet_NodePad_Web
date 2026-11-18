@@ -323,6 +323,27 @@
     </div>
 </div>
 
+<!-- Add or edit a to do item (js/todo.js) -->
+<div id="todo-item-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="todo-item-title">
+        <div class="modal-header">
+            <h2 id="todo-item-title">Edit item</h2>
+            <button class="icon-button" type="button" id="todo-item-close-btn" aria-label="Close" title="Close"><span class="icon">close</span></button>
+        </div>
+        <div class="modal-body form-stack">
+            <label class="field">
+                <span>Item text</span>
+                <textarea id="todo-item-text" rows="4"></textarea>
+                <small class="field-hint">Enter saves. An item is one line, so line breaks become spaces.</small>
+            </label>
+        </div>
+        <div class="modal-footer">
+            <button id="todo-item-cancel-btn" class="button secondary" type="button">Cancel</button>
+            <button id="todo-item-save-btn" class="button" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- Confirm and prompt dialog -->
 <div id="modal-overlay" class="modal-overlay">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">

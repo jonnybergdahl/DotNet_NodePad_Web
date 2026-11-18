@@ -84,7 +84,7 @@ Copy the markup on the Settings and Account pages:
 - **Checkbox**: `<label class="check"><input type="checkbox"><span>Label<small class="field-hint">…</small></span></label>`.
 - **Layout**: `.form-grid` puts fields in responsive columns, `.form-stack` stacks them. `.inline-form` (NodePad) puts a field and its button on one line. Group related settings in cards with a `.card-header`.
 - **Actions**: a `.form-actions` row with at most one primary `.button`, `.button.secondary` for the rest, and a `.form-status` element with `role="status"` for messages like "Settings saved."
-- Every control needs a visible label. Don't use placeholders as labels (the To do page's "Add item" field, with an `aria-label`, is the one exception).
+- Every control needs a visible label. Don't use placeholders as labels.
 
 ## Dropdown menus
 

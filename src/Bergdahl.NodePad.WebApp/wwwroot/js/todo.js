@@ -87,10 +87,10 @@ function refreshTodoViews() {
     if (activePage === 'settings') loadSettingsTodoLists();
 }
 
-// Reloads the ToDo page without disturbing the user: an item being edited holds the refresh back
-// until the edit is done, and text typed in the "Add item" fields and the focus are kept.
+// Reloads the ToDo page without disturbing the user: an open item dialog holds the refresh back
+// until it closes, and the focus is kept.
 async function refreshTodoPage() {
-    const editing = () => todoView.querySelector('.todo-edit') !== null;
+    const editing = () => todoItemOverlay.classList.contains('active');
     if (editing()) {
         todoRefreshPending = true;
         return;
@@ -109,18 +109,10 @@ async function refreshTodoPage() {
     todoRefreshPending = false;
 
     const active = document.activeElement;
-    const focusList = active?.classList.contains('todo-add-input') ? active.closest('.todo-card')?.dataset.list : null;
-    const drafts = new Map([...todoView.querySelectorAll('.todo-card')]
-        .map(card => [card.dataset.list, card.querySelector('.todo-add-input')?.value || ''])
-        .filter(([, text]) => text));
+    const focusList = active?.classList.contains('todo-add') ? active.closest('.todo-card')?.dataset.list : null;
 
     todoLists = lists;
-    renderTodos();
-    todoView.querySelectorAll('.todo-card').forEach(card => {
-        const input = card.querySelector('.todo-add-input');
-        if (input && drafts.has(card.dataset.list)) input.value = drafts.get(card.dataset.list);
-        if (input && card.dataset.list === focusList) input.focus();
-    });
+    renderTodos(focusList);
 }
 
 function runPendingTodoRefresh() {
@@ -145,7 +137,7 @@ function renderTodoItem(item) {
     return `
         <li class="todo-item${item.done ? ' done' : ''}" data-index="${item.index}">
             <input type="checkbox" class="todo-check" ${item.done ? 'checked' : ''} aria-label="Done: ${todoEscape(item.text)}">
-            <span class="todo-text" tabindex="0" title="Click to edit">${todoEscape(item.text)}</span>
+            <button class="todo-text" type="button" data-action="edit-item" title="Edit item">${todoEscape(item.text)}</button>
             ${item.done && item.doneDate ? `<span class="todo-date" title="Done ${todoEscape(item.doneDate)}">${todoDateLabel(item.doneDate)}</span>` : ''}
             <button class="icon-button todo-delete" type="button" data-action="delete-item" title="Delete item" aria-label="Delete item">
                 <span class="icon">close</span>
@@ -161,10 +153,9 @@ function renderTodoCard(list) {
         <section class="card todo-card" data-list="${todoEscape(list.name)}">
             <header class="card-header"><span class="icon">checklist</span><h2>${todoEscape(list.name)}</h2></header>
             ${items}
-            <div class="todo-add">
-                <span class="icon" aria-hidden="true">add</span>
-                <input type="text" class="todo-add-input" placeholder="Add item" aria-label="Add item to ${todoEscape(list.name)}">
-            </div>
+            <button class="todo-add" type="button" data-action="add-item" aria-label="Add item to ${todoEscape(list.name)}">
+                <span class="icon" aria-hidden="true">add</span>Add item
+            </button>
         </section>`;
 }
 
@@ -192,13 +183,9 @@ function renderTodos(focusAddForList) {
 
     if (focusAddForList) {
         const card = [...todoView.querySelectorAll('.todo-card')].find(c => c.dataset.list === focusAddForList);
-        card?.querySelector('.todo-add-input')?.focus();
+        card?.querySelector('.todo-add')?.focus();
     }
 }
-
-// ---------------------------------------------------------------------
-// Actions
-// ---------------------------------------------------------------------
 
 // ---------------------------------------------------------------------
 // List management (Settings page, "To do lists" card)
@@ -298,35 +285,73 @@ settingsTodoLists.addEventListener('click', e => {
 // Item editing on the ToDo page
 // ---------------------------------------------------------------------
 
-function startEditTodoText(textEl) {
-    const card = textEl.closest('.todo-card');
-    const item = textEl.closest('.todo-item');
-    const original = textEl.textContent;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'todo-edit';
-    input.value = original;
-    textEl.replaceWith(input);
-    input.focus();
-    input.select();
+const todoItemOverlay = document.getElementById('todo-item-overlay');
+const todoItemTitle = document.getElementById('todo-item-title');
+const todoItemText = document.getElementById('todo-item-text');
+const todoItemSaveBtn = document.getElementById('todo-item-save-btn');
+const todoItemCancelBtn = document.getElementById('todo-item-cancel-btn');
+const todoItemCloseBtn = document.getElementById('todo-item-close-btn');
 
-    let finished = false;
-    const finish = async (save) => {
-        if (finished) return;
-        finished = true;
-        const text = input.value.trim();
-        if (save && text && text !== original) {
-            await todoChange('PUT', `/api/todos/items?${listQuery(card.dataset.list)}&index=${item.dataset.index}${todoOldParam('&')}`, { text });
-        } else {
-            renderTodos();
-        }
-        runPendingTodoRefresh();
-    };
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-        else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+// An item is one line of the list file, so line breaks (typed or pasted) become spaces
+const todoOneLine = text => text.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+
+// Opens the item dialog and resolves to the trimmed text, or null when cancelled or left empty
+function showTodoItemDialog(title, text = '') {
+    return new Promise(resolve => {
+        const opener = document.activeElement;
+        todoItemTitle.textContent = title;
+        todoItemText.value = text;
+        todoItemOverlay.classList.add('active');
+        todoItemText.focus();
+        todoItemText.setSelectionRange(text.length, text.length);
+
+        const close = value => {
+            todoItemOverlay.classList.remove('active');
+            todoItemSaveBtn.removeEventListener('click', save);
+            todoItemCancelBtn.removeEventListener('click', cancel);
+            todoItemCloseBtn.removeEventListener('click', cancel);
+            todoItemText.removeEventListener('input', flatten);
+            document.removeEventListener('keydown', onKey);
+            if (opener?.isConnected) opener.focus();
+            resolve(value);
+        };
+        const save = () => close(todoOneLine(todoItemText.value) || null);
+        const cancel = () => close(null);
+        const flatten = () => {
+            const value = todoItemText.value;
+            if (!/[\r\n]/.test(value)) return;
+            const breaks = /\s*[\r\n]+\s*/g;
+            const head = value.slice(0, todoItemText.selectionStart).replace(breaks, ' ');
+            todoItemText.value = head + value.slice(todoItemText.selectionStart).replace(breaks, ' ');
+            todoItemText.setSelectionRange(head.length, head.length);
+        };
+        const onKey = e => {
+            if (e.key === 'Enter' && e.target === todoItemText && !e.isComposing) { e.preventDefault(); save(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        };
+
+        todoItemSaveBtn.addEventListener('click', save);
+        todoItemCancelBtn.addEventListener('click', cancel);
+        todoItemCloseBtn.addEventListener('click', cancel);
+        todoItemText.addEventListener('input', flatten);
+        document.addEventListener('keydown', onKey);
     });
-    input.addEventListener('blur', () => finish(true));
+}
+
+async function addTodoItem(list) {
+    const text = await showTodoItemDialog(`Add item to ${list}`);
+    if (text) {
+        await todoChange('POST', `/api/todos/items?${listQuery(list)}${todoOldParam('&')}`, { text }, { focusAdd: true });
+    }
+    runPendingTodoRefresh();
+}
+
+async function editTodoItem(list, index, original) {
+    const text = await showTodoItemDialog('Edit item', original);
+    if (text && text !== original) {
+        await todoChange('PUT', `/api/todos/items?${listQuery(list)}&index=${index}${todoOldParam('&')}`, { text });
+    }
+    runPendingTodoRefresh();
 }
 
 todoView.addEventListener('click', e => {
@@ -338,7 +363,11 @@ todoView.addEventListener('click', e => {
         const index = e.target.closest('.todo-item').dataset.index;
         return todoChange('DELETE', `/api/todos/items?${listQuery(list)}&index=${index}${todoOldParam('&')}`);
     }
-    if (e.target.classList.contains('todo-text')) startEditTodoText(e.target);
+    if (action === 'add-item') return addTodoItem(list);
+    if (action === 'edit-item') {
+        const textEl = e.target.closest('.todo-text');
+        return editTodoItem(list, textEl.closest('.todo-item').dataset.index, textEl.textContent);
+    }
 });
 
 todoView.addEventListener('change', e => {
@@ -352,19 +381,5 @@ todoView.addEventListener('change', e => {
         const list = e.target.closest('.todo-card').dataset.list;
         const index = e.target.closest('.todo-item').dataset.index;
         todoChange('PUT', `/api/todos/items?${listQuery(list)}&index=${index}${todoOldParam('&')}`, { done: e.target.checked });
-    }
-});
-
-todoView.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    if (e.target.classList.contains('todo-add-input')) {
-        const text = e.target.value.trim();
-        if (!text) return;
-        const list = e.target.closest('.todo-card').dataset.list;
-        todoChange('POST', `/api/todos/items?${listQuery(list)}${todoOldParam('&')}`, { text }, { focusAdd: true });
-    } else if (e.target.classList.contains('todo-text')) {
-        // Keyboard access to inline editing
-        e.preventDefault();
-        startEditTodoText(e.target);
     }
 });
