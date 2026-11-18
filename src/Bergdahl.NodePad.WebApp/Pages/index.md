@@ -13,7 +13,7 @@ A fast, lightweight notes web app that uses plain Markdown files. Create, organi
 - Add images to your notes
 - Search notes by title or content
 - Link notes to each other, and bookmark or share a link to any note
-- Switch between a light and a dark theme
+- Switch between a light and a dark theme, or follow your system's setting
 - Enjoy automatic, lightweight backups of your notes folder
 - Keep named to do lists: checked items get the date they were done and disappear two weeks later
 - Sync the to do lists with Home Assistant, both ways
@@ -36,4 +36,4 @@ The **Folder** folder holds a Markdown showcase with examples of headings, lists
 
 ---
 
-MIT © 2025 Jonny Bergdahl — open source on [GitHub](https://github.com/jonnybergdahl/NodePad)
+MIT © 2025 Jonny Bergdahl — open source on [GitHub](https://github.com/jonnybergdahl/DotNet_NodePad_Web)

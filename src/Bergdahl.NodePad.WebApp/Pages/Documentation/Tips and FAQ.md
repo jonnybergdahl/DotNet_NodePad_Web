@@ -25,4 +25,4 @@
 
 ## Need help or want to contribute?
 
-- Found an issue or have an idea? Open an issue or pull request on [GitHub](https://github.com/jonnybergdahl/NodePad).
+- Found an issue or have an idea? Open an issue or pull request on [GitHub](https://github.com/jonnybergdahl/DotNet_NodePad_Web).

@@ -2,7 +2,7 @@
 
 NodePad has a built-in MCP server, so AI assistants such as Claude Code can search, read, create and edit your notes, and read and update your to do lists, including removing single items. Notes and whole to do lists cannot be deleted through it.
 
-1) In NodePad, open Settings (the gear button), go to the "MCP Server" tab and click "Generate API key". Copy the key right away — it is only shown once. Generating a new key replaces the old one, and "Revoke key" turns MCP access off.
+1) In NodePad, open Settings (the account button at the right end of the top bar, then "Settings") and click "Generate API key" under "MCP server". Copy the key right away — it is only shown once. Generating a new key replaces the old one, and "Revoke key" turns MCP access off.
 2) Add the server to your assistant using the MCP server URL shown in Settings (for example `http://<your-nodepad-host>/mcp`) and send the key as a bearer token. For Claude Code:
 
    ```bash

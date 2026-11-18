@@ -144,6 +144,7 @@ if (!app.Services.GetRequiredService<CredentialStore>().IsConfigured)
 var publicFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/login.html", "/favicon.ico", "/assets/nodepad_logo.png", "/assets/nodepad_icon.png",
+    "/assets/favicon.svg", "/assets/app-icon.svg", "/css/theme.css", "/css/app.css", "/js/theme.js",
 };
 app.UseWhen(context => publicFiles.Contains(context.Request.Path.Value ?? string.Empty), branch => branch.UseStaticFiles());
 

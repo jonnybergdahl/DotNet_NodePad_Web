@@ -22,7 +22,7 @@ A fast, lightweight notes web app that uses plain Markdown files. Create, organi
 - Add images to your notes
 - Search notes by title or content
 - Link notes to each other, and bookmark or share a link to any note
-- Switch between a light and a dark theme
+- Switch between a light and a dark theme, or follow your system's setting
 - Enjoy automatic, lightweight backups of your notes folder
 - Keep named to do lists: checked items get the date they were done and disappear two weeks later
 - Sync the to do lists with Home Assistant, both ways
@@ -49,8 +49,8 @@ NodePad is protected by a single account. Everything — the app, the API and yo
 
 - First start: open NodePad in your browser and you will be asked to create your account (username and password, at least 6 characters). Do this right after installing, since whoever opens the app first gets to create the account.
 - The account is stored in nodepad.auth.json next to nodepad.json (it is git-ignored). The password is stored as a salted PBKDF2 hash, never in plain text.
-- Change your password on the "Password" tab in Settings (the gear button in the top bar). Other browsers that are signed in will be signed out.
-- Sign out with the sign-out button in the top-right corner.
+- Change your password on the Account page: click the account button at the right end of the top bar and choose "Account". Other browsers that are signed in will be signed out.
+- Sign out with "Logout" in the same account menu.
 - Forgot your password? Stop NodePad, delete nodepad.auth.json, start it again and create a new account.
 - Too many failed sign-in attempts from the same address are blocked for a minute.
 
@@ -64,7 +64,7 @@ Hosting in IIS
 
 NodePad has a built-in MCP server, so AI assistants such as Claude Code can search, read, create and edit your notes, and read and update your to do lists, including removing single items. Notes and whole to do lists cannot be deleted through it.
 
-1) In NodePad, open Settings (the gear button), go to the "MCP Server" tab and click "Generate API key". Copy the key right away — it is only shown once. Generating a new key replaces the old one, and "Revoke key" turns MCP access off.
+1) In NodePad, open Settings (the account button at the right end of the top bar, then "Settings") and click "Generate API key" under "MCP server". Copy the key right away — it is only shown once. Generating a new key replaces the old one, and "Revoke key" turns MCP access off.
 2) Add the server to your assistant using the MCP server URL shown in Settings (for example `http://<your-nodepad-host>/mcp`) and send the key as a bearer token. For Claude Code:
 
    ```bash
@@ -96,18 +96,18 @@ The API key only grants access to /mcp, not to the rest of the app. Only a hash 
   - Click the filter button next to "Pages" at the top of the tree to pick tags from a list (type to find a tag). Select one or more to show only the notes that have all of them. Active filters show as chips above the tree; click a chip to remove it, or use "Clear" in the list.
 
 - Links between notes
-  - Every note has its own address, for example `http://<your-nodepad-host>/#/Documentation/Settings`. Bookmark it, share it, or open it in a new tab; the browser's back and forward buttons move between the notes you have opened. The To do page is at `/#todo`.
+  - Every note has its own address, for example `http://<your-nodepad-host>/#/Documentation/Settings`. Bookmark it, share it, or open it in a new tab; the browser's back and forward buttons move between the notes you have opened. The To do page is at `/#todo`, Settings at `/#settings` and the Account page at `/#account`.
   - To link to another note, use an ordinary Markdown link to its file, relative to the current note or starting with / for the Pages folder: `[Settings](Settings.md)`, `[Showcase](../Folder/folder.md)` or `[Home](/index.md)`. For names with spaces, use angle brackets or %20: `[Getting started](<Getting started.md>)`.
   - Or let NodePad write the link: while editing, click the link button in the editor toolbar, then pick a note in the tree (double-click inserts it straight away). You can still type any URL there instead.
 
 - Search
-  - Type in the search field in the top bar and press Enter. Results show the matching text; click one to open the note.
+  - Type in the search field in the top bar; results show as you type, with the matching text. Click one, or pick it with the arrow keys and Enter, to open the note. Ctrl+K (⌘K on a Mac) or / jumps to the search field.
 
 - Images that “just work”
   - Paste, drag in, or insert images. NodePad saves them next to your note and updates the link for you.
 
 - Themes
-  - NodePad follows your system's light or dark setting. Use the sun/moon button in the top bar to switch; your choice is remembered in the browser.
+  - NodePad follows your system's light or dark setting. The theme button in the top bar switches between system, light and dark; your choice is remembered in the browser.
 
 - Backups
   - Every time you save a note, NodePad zips the whole Pages folder into the Backups folder in the background. The 10 most recent backups are kept.
@@ -116,7 +116,7 @@ The API key only grants access to /mcp, not to the rest of the app. Only a hash 
 
 Click "To do" at the top of the menu to open the To do page. It shows all your to do lists side by side.
 
-- Lists are created, renamed and deleted on the "To do lists" tab in Settings.
+- Lists are created, renamed and deleted under "To do lists" on the Settings page.
 - Type in "Add item" at the bottom of a list and press Enter to add an item.
 - Tick an item's checkbox when it is done. NodePad notes the date, and done items are moved below the open ones, newest first.
 - Click an item's text to change it (Enter saves, Esc cancels), and use the cross that appears when you point at an item to delete it.
@@ -138,25 +138,26 @@ You can edit these files in any editor: lines that are not items are left untouc
 NodePad can keep the to do lists in step with Home Assistant, so you can also check off items in the Home Assistant app, on a dashboard or by voice.
 
 1) In Home Assistant, create a long-lived access token: open your profile, go to the Security tab and click "Create token". The user must be an administrator, since NodePad creates the lists in Home Assistant.
-2) In NodePad, open Settings, go to the "Home Assistant" tab, enter the address of Home Assistant (for example http://homeassistant.local:8123) and the token, tick "Sync the to do lists" and click Save.
+2) In NodePad, open Settings, and under "Home Assistant" enter the address of Home Assistant (for example http://homeassistant.local:8123) and the token, tick "Sync the to do lists" and click Save.
 
 How it works:
 - Each list gets a Local To-do list with the same name in Home Assistant, holding the open items and the done items of the last two weeks. If Home Assistant already has a Local To-do list with that name, it is used and the items of both are combined.
 - Items added, checked off, unchecked, changed or removed on either side change on the other side right away. Items are matched by their text, so changing an item's text in NodePad replaces it in Home Assistant. An open To do page shows changes made in Home Assistant without being reloaded.
 - If one side removes an item while the other side changes it, the item is removed.
 - Lists are created, renamed and deleted in NodePad, and Home Assistant follows: a renamed list is created again under its new name. Lists created in Home Assistant are not added to NodePad, and a list deleted in Home Assistant is created there again with NodePad's items.
-- NodePad stays connected to Home Assistant, and syncs all lists when it starts and whenever the connection comes back, so changes made on either side in the meantime are not lost. If Home Assistant cannot be reached, NodePad keeps trying; the "Home Assistant" tab shows the status.
+- NodePad stays connected to Home Assistant, and syncs all lists when it starts and whenever the connection comes back, so changes made on either side in the meantime are not lost. If Home Assistant cannot be reached, NodePad keeps trying; the "Home Assistant" section in Settings shows the status.
 - The address and token are stored in nodepad.auth.json, and the state of the last sync in _ToDo/.homeassistant.json.
 
 ## Settings
 
-Open Settings with the gear button in the top bar.
+Open Settings from the account menu: click the account button at the right end of the top bar and choose "Settings".
 
-- Settings tab: Allowed Hosts, the Pages directory and the Backup directory. These are saved to nodepad.json, which is created the first time you save if it does not exist yet; until then the defaults are used (Pages and Backups next to the app). Leave a field empty to go back to its default. Relative paths are relative to the folder NodePad runs from. A changed Pages directory takes effect after restarting NodePad.
-- Password tab: change your password.
-- MCP Server tab: create or revoke the API key for AI assistants (MCP).
-- To do lists tab: create, rename and delete to do lists. Deleting a list also deletes its items.
-- Home Assistant tab: the address and access token of Home Assistant, and whether the to do lists are synced with it (see "Syncing with Home Assistant" under To do lists).
+- To do lists: create, rename and delete to do lists. Deleting a list also deletes its items.
+- MCP server: create or revoke the API key for AI assistants (MCP).
+- General: Allowed Hosts, the Pages directory and the Backup directory. These are saved to nodepad.json, which is created the first time you save if it does not exist yet; until then the defaults are used (Pages and Backups next to the app). Leave a field empty to go back to its default. Relative paths are relative to the folder NodePad runs from. A changed Pages directory takes effect after restarting NodePad.
+- Home Assistant: the address and access token of Home Assistant, and whether the to do lists are synced with it (see "Syncing with Home Assistant" under To do lists).
+
+The Save button at the bottom saves General and Home Assistant together. To do lists and the MCP key change as soon as you click their buttons. Your password is changed on the Account page (see Signing in).
 
 Some options can only be set by editing nodepad.json (or appsettings.json):
 

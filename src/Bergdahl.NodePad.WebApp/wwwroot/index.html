@@ -2,24 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>NodePad</title>
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="shortcut icon" href="/favicon.ico">
-    <!-- Fonts and icons (Material Design 3 look shared with LinkDash) -->
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="/favicon.ico" sizes="any">
+
+    <!-- Material Symbols (https://fonts.google.com/icons) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
-    <!-- Toast UI Editor Styles -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
+
+    <!-- Toast UI Editor, with its dark theme so we can switch via option -->
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
-    <!-- Toast UI Dark Theme (loaded so we can switch via option) -->
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.css">
     <!-- Prism.js for syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
     <link rel="stylesheet" href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css">
-    <!-- Our app stylesheet LAST to override library defaults -->
+
+    <!-- Bergdahl web app template (theme.css, app.css), then NodePad's own styles, last to override library defaults -->
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="css/app.css">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="js/theme.js"></script>
 
     <!-- Toast UI Editor Script -->
     <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
@@ -39,227 +44,313 @@
     <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight-all.min.js"></script>
 </head>
 <body>
-<header class="top-app-bar">
-    <a class="brand" href="/">
-        <img src="/assets/nodepad_icon.png" alt="" width="40" height="40" />
-        <span>NodePad</span>
-    </a>
+<div class="app">
 
-    <div class="title-search">
-        <span class="material-symbols-rounded title-search-icon" aria-hidden="true">search</span>
-        <input id="search-input" class="title-search-input" type="search" placeholder="Search notes" title="Search notes" />
-        <button id="search-button" class="icon-button title-search-button" title="Search" aria-label="Search">
-            <span class="material-symbols-rounded">arrow_forward</span>
-        </button>
-    </div>
+    <!-- ===== Top bar: app icon + name left, search centre, action icons right ===== -->
+    <header class="topbar">
+        <div class="topbar-start">
+            <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+                <span class="icon">menu</span>
+            </button>
+            <!-- Links to the home page (index.md) -->
+            <a class="app-title" href="#">
+                <img class="app-icon" src="/assets/app-icon.svg" alt="" width="32" height="32">
+                <span class="app-name" data-app-name></span>
+            </a>
+        </div>
 
-    <nav class="top-app-bar-actions">
-        <button id="theme-toggle" class="icon-button" title="Switch theme" aria-label="Switch theme">
-            <span class="material-symbols-rounded">dark_mode</span>
-        </button>
-        <button id="settings-btn" class="icon-button" title="Settings" aria-label="Settings">
-            <span class="material-symbols-rounded">settings</span>
-        </button>
-        <button id="logout-btn" class="icon-button" title="Sign out" aria-label="Sign out">
-            <span class="material-symbols-rounded">logout</span>
-        </button>
-    </nav>
-    <!-- Anchored search results panel (inside the app bar for anchoring) -->
-    <div id="search-results" class="search-results" aria-live="polite" aria-label="Search results" hidden></div>
-</header>
-<div id="container">
-    <nav id="sidebar" aria-label="Navigation">
-        <a href="#todo" id="todo-nav" class="todo-nav" title="To do lists">
-            <span class="material-symbols-rounded">checklist</span>
-            <span>To do</span>
-        </a>
+        <!-- Search, centred. js/search.js searches the notes; Ctrl/⌘ K focuses it. -->
+        <div class="search" data-search>
+            <div class="search-field">
+                <span class="icon">search</span>
+                <input type="search" placeholder="Search notes" aria-label="Search notes" autocomplete="off"
+                       role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" data-search-input>
+                <kbd class="search-shortcut" data-search-shortcut>Ctrl K</kbd>
+                <button class="icon-button search-close" type="button" aria-label="Close search" data-search-close>
+                    <span class="icon">close</span>
+                </button>
+            </div>
+            <ul class="search-results" id="search-results" role="listbox" aria-label="Search results" hidden data-search-results></ul>
+        </div>
+
+        <div class="topbar-actions">
+            <!-- Shown on phones, where the search field is collapsed -->
+            <button class="icon-button search-open" type="button" aria-label="Search" title="Search" data-search-open>
+                <span class="icon">search</span>
+            </button>
+            <button class="icon-button" type="button" data-theme-toggle aria-label="Theme: system" title="Theme: system">
+                <span class="icon">brightness_auto</span>
+            </button>
+
+            <!-- Account menu: always last -->
+            <div class="dropdown" data-dropdown>
+                <button class="icon-button" type="button" data-dropdown-toggle aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="Account" title="Account">
+                    <span class="icon">account_circle</span>
+                </button>
+                <div class="dropdown-menu" id="account-menu" role="menu" hidden>
+                    <div class="dropdown-header" data-user-name></div>
+                    <a class="dropdown-item" href="#account" role="menuitem"><span class="icon">person</span>Account</a>
+                    <a class="dropdown-item" href="#settings" role="menuitem"><span class="icon">settings</span>Settings</a>
+                    <button class="dropdown-item" type="button" role="menuitem" data-logout><span class="icon">logout</span>Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== Left menu: the To do page, then the notes tree ===== -->
+    <nav class="sidebar" id="sidebar" aria-label="Main">
+        <ul class="nav">
+            <li><a class="nav-link" href="#todo" id="todo-nav"><span class="icon">checklist</span>To do</a></li>
+        </ul>
         <div id="menu"></div>
         <div id="tag-filter-popover" class="tag-filter-popover" role="dialog" aria-label="Filter by tag" hidden>
-            <input id="tag-filter-input" class="menu-filter-input" type="search" placeholder="Find tag" aria-label="Find tag" />
+            <label class="field">
+                <span>Find tag</span>
+                <input id="tag-filter-input" type="search" autocomplete="off">
+            </label>
             <ul id="tag-filter-list" class="tag-filter-list"></ul>
             <div class="tag-filter-actions">
-                <button type="button" id="tag-filter-clear" class="button text">Clear</button>
+                <button type="button" id="tag-filter-clear" class="button secondary">Clear</button>
             </div>
         </div>
     </nav>
-    <div id="editor-section">
-        <div class="toolbar">
-            <button id="btn-create-file" class="button tonal" title="Create new document"><span class="material-symbols-rounded">note_add</span>New Document</button>
-            <button id="btn-create-folder" class="button tonal" title="Create new node"><span class="material-symbols-rounded">create_new_folder</span>New Node</button>
-            <button id="btn-edit" class="button filled" title="Edit current file"><span class="material-symbols-rounded">edit</span>Edit</button>
-            <button id="btn-save" class="button filled" title="Save changes"><span class="material-symbols-rounded">save</span>Save</button>
-            <button id="btn-cancel" class="button text" title="Cancel editing">Cancel</button>
-            <button id="btn-rename" class="button text" title="Rename selected file or folder"><span class="material-symbols-rounded">drive_file_rename_outline</span>Rename</button>
-            <button id="btn-delete" class="button text danger" title="Delete current file"><span class="material-symbols-rounded">delete</span>Delete</button>
-        </div>
-        <div id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></div>
-        <div id="tags-bar" class="tags-bar" aria-label="Tags">
-            <div id="tags-view" class="tags-view" title="Page tags"></div>
-            <div id="tags-edit" class="tags-edit">
-                <input id="tags-input" class="tags-input" type="text" placeholder="Add tags (comma separated)" />
-            </div>
-        </div>
-        <div id="editor"></div>
-        <div id="todo-view" class="todo-view" aria-label="To do lists" hidden></div>
-    </div>
-</div>
+    <div class="scrim"></div>
 
-<!-- Settings Modal -->
-<div id="settings-overlay" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 id="settings-title">Settings</h3>
-            <button class="icon-button modal-close" id="settings-close-btn" aria-label="Close"><span class="material-symbols-rounded">close</span></button>
-        </div>
-        <div class="settings-tabs" role="tablist" aria-label="Settings sections">
-            <button class="settings-tab" role="tab" id="settings-tab-general" aria-controls="settings-panel-general" aria-selected="true" data-tab="general">Settings</button>
-            <button class="settings-tab" role="tab" id="settings-tab-password" aria-controls="settings-panel-password" aria-selected="false" tabindex="-1" data-tab="password">Password</button>
-            <button class="settings-tab" role="tab" id="settings-tab-mcp" aria-controls="settings-panel-mcp" aria-selected="false" tabindex="-1" data-tab="mcp">MCP Server</button>
-            <button class="settings-tab" role="tab" id="settings-tab-todo" aria-controls="settings-panel-todo" aria-selected="false" tabindex="-1" data-tab="todo">To do lists</button>
-            <button class="settings-tab" role="tab" id="settings-tab-ha" aria-controls="settings-panel-ha" aria-selected="false" tabindex="-1" data-tab="ha">Home Assistant</button>
-        </div>
-        <div class="modal-body">
-            <div class="settings-panel" role="tabpanel" id="settings-panel-general" aria-labelledby="settings-tab-general">
-                <div class="form-row">
-                    <label for="settings-allowed-hosts">Allowed Hosts</label>
-                    <input type="text" id="settings-allowed-hosts" class="modal-input" placeholder="e.g. * or localhost;example.com">
-                </div>
-                <div class="form-row">
-                    <label for="settings-pages-dir">Pages Directory</label>
-                    <input type="text" id="settings-pages-dir" class="modal-input" placeholder="e.g. Pages or /absolute/path">
-                    <small class="hint">Changing this may require restarting the app to serve static assets from /pages.</small>
-                </div>
-                <div class="form-row">
-                    <label for="settings-backup-dir">Backup Directory</label>
-                    <input type="text" id="settings-backup-dir" class="modal-input" placeholder="e.g. Backups or /absolute/path">
+    <!-- ===== Pages: notes (default), To do, Settings and Account ===== -->
+    <main class="main main-fill" id="main">
+
+        <!-- The open note. Fills the main area, so the editor can use the full height. -->
+        <section class="page page-notes" data-page="notes">
+            <div class="note-bar">
+                <nav id="breadcrumbs" class="note-breadcrumbs" aria-label="Breadcrumb"></nav>
+                <div class="toolbar">
+                    <button id="btn-create-file" class="button secondary" type="button" title="Create new document"><span class="icon">note_add</span>New Document</button>
+                    <button id="btn-create-folder" class="button secondary" type="button" title="Create new node"><span class="icon">create_new_folder</span>New Node</button>
+                    <button id="btn-rename" class="button secondary" type="button" title="Rename selected file or folder"><span class="icon">drive_file_rename_outline</span>Rename</button>
+                    <button id="btn-delete" class="button secondary danger" type="button" title="Delete current file"><span class="icon">delete</span>Delete</button>
+                    <button id="btn-cancel" class="button secondary" type="button" title="Cancel editing">Cancel</button>
+                    <button id="btn-edit" class="button" type="button" title="Edit current file"><span class="icon">edit</span>Edit</button>
+                    <button id="btn-save" class="button" type="button" title="Save changes"><span class="icon">save</span>Save</button>
                 </div>
             </div>
-            <div class="settings-panel" role="tabpanel" id="settings-panel-password" aria-labelledby="settings-tab-password" hidden>
-                <div class="form-row">
-                    <label for="settings-current-password">Current password</label>
-                    <input type="password" id="settings-current-password" class="modal-input" autocomplete="current-password">
-                </div>
-                <div class="form-row">
-                    <label for="settings-new-password">New password (at least 6 characters)</label>
-                    <input type="password" id="settings-new-password" class="modal-input" autocomplete="new-password" minlength="6">
-                </div>
-                <div class="form-row">
-                    <label for="settings-confirm-password">Confirm new password</label>
-                    <input type="password" id="settings-confirm-password" class="modal-input" autocomplete="new-password" minlength="6">
-                </div>
-                <button id="settings-password-btn" class="modal-btn modal-btn-primary">Change password</button>
-                <small class="hint settings-note">Other signed-in browsers will be signed out.</small>
-            </div>
-            <div class="settings-panel" role="tabpanel" id="settings-panel-mcp" aria-labelledby="settings-tab-mcp" hidden>
-                <p class="hint">Let AI assistants such as Claude read and edit your notes through the MCP endpoint. Notes cannot be deleted this way.</p>
-                <div class="form-row">
-                    <label for="settings-mcp-url">MCP server URL</label>
-                    <input type="text" id="settings-mcp-url" class="modal-input" readonly>
-                </div>
-                <p id="settings-mcp-status" class="hint"></p>
-                <div id="settings-mcp-key-row" class="form-row" hidden>
-                    <label for="settings-mcp-key">API key (copy it now, it will not be shown again)</label>
-                    <input type="text" id="settings-mcp-key" class="modal-input" readonly>
-                    <button id="settings-mcp-copy-btn" class="modal-btn modal-btn-secondary">Copy key</button>
-                </div>
-                <div class="settings-mcp-actions">
-                    <button id="settings-mcp-generate-btn" class="modal-btn modal-btn-primary">Generate API key</button>
-                    <button id="settings-mcp-revoke-btn" class="modal-btn modal-btn-secondary">Revoke key</button>
+            <div id="tags-bar" class="tags-bar" aria-label="Tags">
+                <div id="tags-view" class="tags-view" title="Page tags"></div>
+                <div id="tags-edit" class="tags-edit">
+                    <label class="field">
+                        <span>Tags (comma separated)</span>
+                        <input id="tags-input" type="text">
+                    </label>
                 </div>
             </div>
-            <div class="settings-panel" role="tabpanel" id="settings-panel-todo" aria-labelledby="settings-tab-todo" hidden>
-                <p class="hint">Create, rename and delete to do lists. Items are added and checked off on the To do page.</p>
-                <ul id="settings-todo-lists" class="settings-todo-lists" aria-label="To do lists"></ul>
-                <div class="settings-todo-add">
-                    <input type="text" id="settings-todo-name" class="modal-input" placeholder="Name of the new list" aria-label="Name of the new list">
-                    <button id="settings-todo-add-btn" class="modal-btn modal-btn-primary">Add list</button>
+            <div id="editor" class="note-card"></div>
+        </section>
+
+        <!-- Rendered by js/todo.js -->
+        <section class="page page-wide" data-page="todo" data-title="To do" hidden>
+            <div id="todo-view" class="todo-view" aria-label="To do lists"></div>
+        </section>
+
+        <!-- Reached from the account menu -->
+        <section class="page" data-page="settings" hidden>
+            <header class="page-header">
+                <h1>Settings</h1>
+                <p>Settings for this NodePad server.</p>
+            </header>
+
+            <div class="card">
+                <header class="card-header"><span class="icon">checklist</span><h2>To do lists</h2></header>
+                <p class="muted">Create, rename and delete to do lists. Items are added and checked off on the To do page.</p>
+                <ul id="settings-todo-lists" class="list settings-todo-lists" aria-label="To do lists"></ul>
+                <div class="inline-form">
+                    <label class="field">
+                        <span>Name of the new list</span>
+                        <input type="text" id="settings-todo-name">
+                    </label>
+                    <button id="settings-todo-add-btn" class="button secondary" type="button"><span class="icon">add</span>Add list</button>
                 </div>
             </div>
-            <div class="settings-panel" role="tabpanel" id="settings-panel-ha" aria-labelledby="settings-tab-ha" hidden>
-                <p class="hint">Keep the to do lists in step with Home Assistant. Each list gets a Local To-do list with the same name there; items added, checked off or removed on either side change on the other.</p>
-                <div class="form-row">
-                    <label for="settings-ha-url">Home Assistant address</label>
-                    <input type="url" id="settings-ha-url" class="modal-input" placeholder="e.g. http://homeassistant.local:8123">
+
+            <div class="card">
+                <header class="card-header"><span class="icon">smart_toy</span><h2>MCP server</h2></header>
+                <p class="muted">Let AI assistants such as Claude read and edit your notes through the MCP endpoint. Notes cannot be deleted this way.</p>
+                <div class="form-stack">
+                    <label class="field">
+                        <span>MCP server URL</span>
+                        <input type="text" id="settings-mcp-url" readonly>
+                    </label>
+                    <div id="settings-mcp-key-row" class="inline-form" hidden>
+                        <label class="field">
+                            <span>API key</span>
+                            <input type="text" id="settings-mcp-key" readonly>
+                            <small class="field-hint">Copy it now, it will not be shown again.</small>
+                        </label>
+                        <button id="settings-mcp-copy-btn" class="button secondary" type="button"><span class="icon">content_copy</span>Copy key</button>
+                    </div>
+                    <div class="form-actions">
+                        <button id="settings-mcp-generate-btn" class="button secondary" type="button">Generate API key</button>
+                        <button id="settings-mcp-revoke-btn" class="button secondary" type="button">Revoke key</button>
+                        <span id="settings-mcp-status" class="form-status" role="status"></span>
+                    </div>
                 </div>
-                <div class="form-row">
-                    <label for="settings-ha-token">Long-lived access token (of an administrator)</label>
-                    <input type="password" id="settings-ha-token" class="modal-input" autocomplete="off">
-                </div>
-                <label class="settings-ha-active">
-                    <input type="checkbox" id="settings-ha-active">
-                    Sync the to do lists
-                </label>
-                <p id="settings-ha-status" class="hint" role="status"></p>
-                <button id="settings-ha-save-btn" class="modal-btn modal-btn-primary">Save</button>
             </div>
-        </div>
-        <div class="modal-footer">
-            <button id="settings-cancel-btn" class="modal-btn modal-btn-secondary">Cancel</button>
-            <button id="settings-save-btn" class="modal-btn modal-btn-primary">Save</button>
-        </div>
-    </div>
+
+            <!-- General and Home Assistant are saved together with the one Save button -->
+            <form id="settings-form" novalidate>
+                <div class="card">
+                    <header class="card-header"><span class="icon">tune</span><h2>General</h2></header>
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>Allowed hosts</span>
+                            <input type="text" id="settings-allowed-hosts">
+                            <small class="field-hint">For example * or localhost;example.com</small>
+                        </label>
+                        <label class="field">
+                            <span>Pages directory</span>
+                            <input type="text" id="settings-pages-dir">
+                            <small class="field-hint">Pages or an absolute path. Takes effect after restarting NodePad.</small>
+                        </label>
+                        <label class="field">
+                            <span>Backup directory</span>
+                            <input type="text" id="settings-backup-dir">
+                            <small class="field-hint">Backups or an absolute path.</small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <header class="card-header"><span class="icon">home</span><h2>Home Assistant</h2></header>
+                    <p class="muted">Keep the to do lists in step with Home Assistant. Each list gets a Local To-do list with the same name there; items added, checked off or removed on either side change on the other.</p>
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>Home Assistant address</span>
+                            <input type="url" id="settings-ha-url">
+                            <small class="field-hint">For example http://homeassistant.local:8123</small>
+                        </label>
+                        <label class="field">
+                            <span>Long-lived access token</span>
+                            <input type="password" id="settings-ha-token" autocomplete="off">
+                            <small class="field-hint" id="settings-ha-token-hint">Of an administrator.</small>
+                        </label>
+                    </div>
+                    <div class="form-stack">
+                        <label class="check">
+                            <input type="checkbox" id="settings-ha-active">
+                            <span>Sync the to do lists<small class="field-hint" id="settings-ha-status" role="status"></small></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="button" type="submit"><span class="icon">save</span>Save</button>
+                    <span class="form-status" id="settings-status" role="status"></span>
+                </div>
+            </form>
+        </section>
+
+        <!-- Reached from the account menu -->
+        <section class="page" data-page="account" hidden>
+            <header class="page-header">
+                <h1>Account</h1>
+                <p>Your account details.</p>
+            </header>
+            <div class="card">
+                <header class="card-header"><span class="icon">person</span><h2>Account</h2></header>
+                <dl class="details">
+                    <dt>User name</dt>
+                    <dd data-user-name></dd>
+                </dl>
+            </div>
+            <form class="card" id="password-form" novalidate>
+                <header class="card-header"><span class="icon">password</span><h2>Change password</h2></header>
+                <!-- Lets password managers tie the new password to the account -->
+                <input type="text" autocomplete="username" data-user-name-value hidden>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Current password</span>
+                        <input type="password" id="settings-current-password" autocomplete="current-password">
+                    </label>
+                    <label class="field">
+                        <span>New password</span>
+                        <input type="password" id="settings-new-password" autocomplete="new-password" minlength="6">
+                        <small class="field-hint">At least 6 characters.</small>
+                    </label>
+                    <label class="field">
+                        <span>Confirm new password</span>
+                        <input type="password" id="settings-confirm-password" autocomplete="new-password" minlength="6">
+                    </label>
+                </div>
+                <div class="form-actions form-actions-spaced">
+                    <button class="button" type="submit"><span class="icon">key</span>Change password</button>
+                    <span class="form-status">Other signed-in browsers will be signed out.</span>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- ===== Bottom bar ===== -->
+    <footer class="footer">
+        <p><span data-app-name></span>, Copyright&copy; <span data-year></span>, Jonny Bergdahl, <a href="https://github.com/jonnybergdahl/DotNet_NodePad_Web">GitHub</a></p>
+    </footer>
+
 </div>
 
 <!-- Insert link dialog (editor toolbar) -->
 <div id="link-overlay" class="modal-overlay">
-    <div class="modal">
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="link-title">
         <div class="modal-header">
-            <h3>Insert link</h3>
-            <button class="icon-button modal-close" id="link-close-btn" aria-label="Close"><span class="material-symbols-rounded">close</span></button>
+            <h2 id="link-title">Insert link</h2>
+            <button class="icon-button" type="button" id="link-close-btn" aria-label="Close" title="Close"><span class="icon">close</span></button>
         </div>
-        <div class="modal-body">
-            <div class="form-row">
-                <label for="link-url">URL</label>
-                <input type="text" id="link-url" class="modal-input" placeholder="https://… or pick a note below">
-            </div>
-            <div class="form-row">
-                <label for="link-text">Link text</label>
-                <input type="text" id="link-text" class="modal-input">
-            </div>
-            <div class="form-row">
-                <span class="link-tree-label" id="link-tree-label">Link to a note</span>
+        <div class="modal-body form-stack">
+            <label class="field">
+                <span>URL</span>
+                <input type="text" id="link-url" placeholder="https://… or pick a note below">
+            </label>
+            <label class="field">
+                <span>Link text</span>
+                <input type="text" id="link-text">
+            </label>
+            <div class="field">
+                <span id="link-tree-label">Link to a note</span>
                 <div id="link-tree" class="link-tree" role="group" aria-labelledby="link-tree-label"></div>
             </div>
         </div>
         <div class="modal-footer">
-            <button id="link-cancel-btn" class="modal-btn modal-btn-secondary">Cancel</button>
-            <button id="link-insert-btn" class="modal-btn modal-btn-primary">Insert</button>
+            <button id="link-cancel-btn" class="button secondary" type="button">Cancel</button>
+            <button id="link-insert-btn" class="button" type="button">Insert</button>
         </div>
     </div>
 </div>
 
-<!-- Modal Dialog -->
+<!-- Confirm and prompt dialog -->
 <div id="modal-overlay" class="modal-overlay">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-header">
-            <h3 id="modal-title">Dialog</h3>
-            <button class="icon-button modal-close" id="modal-close-btn" aria-label="Close"><span class="material-symbols-rounded">close</span></button>
+            <h2 id="modal-title">Dialog</h2>
+            <button class="icon-button" type="button" id="modal-close-btn" aria-label="Close" title="Close"><span class="icon">close</span></button>
         </div>
         <div class="modal-body">
-            <p id="modal-message"></p>
-            <input type="text" id="modal-input" class="modal-input" placeholder="Enter value...">
+            <label class="field">
+                <span id="modal-message"></span>
+                <input type="text" id="modal-input">
+            </label>
         </div>
         <div class="modal-footer">
-            <button id="modal-cancel-btn" class="modal-btn modal-btn-secondary">Cancel</button>
-            <button id="modal-confirm-btn" class="modal-btn modal-btn-primary">OK</button>
+            <button id="modal-cancel-btn" class="button secondary" type="button">Cancel</button>
+            <button id="modal-confirm-btn" class="button" type="button">OK</button>
         </div>
     </div>
 </div>
 
-<!-- Toast Notifications -->
-<div id="toast-container"></div>
+<!-- Toast notifications -->
+<div id="toast-container" aria-live="polite"></div>
 
-<footer id="footer" class="app-footer">
-    <span>- NodePad - Copyright&copy; 2025-2026, Jonny Bergdahl - 
-    <a href="https://github.com/jonnybergdahl/NodePad" target="_blank" rel="noreferrer">
-        Checkout our
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2Z"/></svg>
-        GitHub repository -
-    </a></span>
-</footer>
-
+<script src="js/shell.js"></script>
 <script src="js/todo.js"></script>
 <script src="js/links.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/app.js"></script>
+<script src="js/search.js"></script>
 </body>
 </html>

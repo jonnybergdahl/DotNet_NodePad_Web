@@ -35,13 +35,13 @@ function renderLinkTree(nodes) {
         if (node.type === 'file') {
             const name = node.name.replace(/\.md$/i, '');
             return `<li><button type="button" class="link-tree-item" data-path="${todoEscape(node.path)}" data-name="${todoEscape(name)}">
-                    <span class="material-symbols-rounded" aria-hidden="true">description</span>${todoEscape(name)}</button></li>`;
+                    <span class="icon" aria-hidden="true">description</span>${todoEscape(name)}</button></li>`;
         }
         // Folders on the way to the open note start expanded
         const open = currentPath.startsWith(node.path + '/') ? ' open' : '';
         return `<li><details${open}><summary class="link-tree-item">
-                <span class="material-symbols-rounded folder-closed" aria-hidden="true">folder</span>
-                <span class="material-symbols-rounded folder-open" aria-hidden="true">folder_open</span>${todoEscape(node.name)}</summary>
+                <span class="icon folder-closed" aria-hidden="true">folder</span>
+                <span class="icon folder-open" aria-hidden="true">folder_open</span>${todoEscape(node.name)}</summary>
                 ${renderLinkTree(node.children || [])}</details></li>`;
     }).join('') + '</ul>';
 }
@@ -52,7 +52,7 @@ async function openLinkDialog(targetEditor) {
     // Like Toast UI's popup, selected text becomes the link text
     linkTextInput.value = targetEditor.getSelectedText() || '';
     linkTextAuto = '';
-    linkTree.innerHTML = '<p class="hint">Loading notes…</p>';
+    linkTree.innerHTML = '<p class="link-tree-hint">Loading notes…</p>';
     linkOverlay.classList.add('active');
     linkUrlInput.focus();
     try {
@@ -60,7 +60,7 @@ async function openLinkDialog(targetEditor) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         linkTree.innerHTML = renderLinkTree(await res.json());
     } catch (err) {
-        linkTree.innerHTML = `<p class="hint">Could not load the notes: ${todoEscape(err.message)}</p>`;
+        linkTree.innerHTML = `<p class="link-tree-hint">Could not load the notes: ${todoEscape(err.message)}</p>`;
     }
 }
 

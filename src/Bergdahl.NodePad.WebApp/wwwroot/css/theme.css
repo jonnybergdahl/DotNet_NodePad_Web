@@ -1,0 +1,98 @@
+/*
+ * Design tokens for light and dark themes.
+ *
+ * The active theme is resolved like this:
+ *   1. <html data-theme="light|dark"> set by js/theme.js when the user picks one.
+ *   2. Otherwise the OS setting (prefers-color-scheme).
+ *
+ * Components must only use these variables, never hard-coded colours.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Brand (from the Bergdahl logotype) */
+  --brand-gray: #838281;
+  --brand-blue: #0093dd;
+
+  /* Surfaces */
+  --color-bg: #f7f7f6;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0f0ef;
+  --color-surface-alt: #eef3f6;       /* card headers: surface with a hint of brand blue */
+  --color-border: #e4e4e2;
+
+  /* Text */
+  --color-text: #1f1f1e;
+  --color-text-muted: #6b6a69;
+
+  /* Accent */
+  --color-accent: #0078b5;          /* brand blue, darkened for AA text contrast */
+  --color-accent-soft: #e3f3fb;
+  --color-error: #c62828;
+
+  /* Primary buttons: the logo blue in both themes. White text in light mode, dark text in dark mode. */
+  --color-primary: #0093dd;
+  --color-primary-hover: #0083c6;   /* darker on hover so the white text stays readable */
+  --color-on-primary: #ffffff;
+
+  /* Shape and spacing */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Layout */
+  --topbar-height: 56px;
+  --footer-height: 40px;
+  --sidebar-width: 232px;
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --shadow-drawer: 0 8px 32px rgb(0 0 0 / 0.18);
+  --transition: 160ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #121212;
+    --color-surface: #1b1b1b;
+    --color-surface-hover: #262626;
+    --color-surface-alt: #1f2629;
+    --color-border: #2e2e2e;
+    --color-text: #ececeb;
+    --color-text-muted: #a2a1a0;
+    --color-accent: #4cb5ea;
+    --color-accent-soft: #0f2a38;
+    --color-primary: #0093dd;
+    --color-primary-hover: #22a5e8;
+    --color-on-primary: #0b1a22;
+    --color-error: #ef7b7b;
+    --shadow-drawer: 0 8px 32px rgb(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #121212;
+  --color-surface: #1b1b1b;
+  --color-surface-hover: #262626;
+  --color-surface-alt: #1f2629;
+  --color-border: #2e2e2e;
+  --color-text: #ececeb;
+  --color-text-muted: #a2a1a0;
+  --color-accent: #4cb5ea;
+  --color-accent-soft: #0f2a38;
+  --color-primary: #0093dd;
+  --color-primary-hover: #22a5e8;
+  --color-on-primary: #0b1a22;
+  --color-error: #ef7b7b;
+  --shadow-drawer: 0 8px 32px rgb(0 0 0 / 0.6);
+}

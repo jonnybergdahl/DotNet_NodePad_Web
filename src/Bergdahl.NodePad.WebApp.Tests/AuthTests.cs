@@ -77,6 +77,11 @@ namespace Bergdahl.NodePad.WebApp.Tests
         [InlineData("/assets/nodepad_logo.png")]
         [InlineData("/assets/nodepad_icon.png")]
         [InlineData("/favicon.ico")]
+        [InlineData("/assets/favicon.svg")]
+        [InlineData("/assets/app-icon.svg")]
+        [InlineData("/css/theme.css")]
+        [InlineData("/css/app.css")]
+        [InlineData("/js/theme.js")]
         public async Task Login_Page_Assets_Are_Public(string path)
         {
             var client = CreateClient();

@@ -1,0 +1,966 @@
+/*
+ * App shell layout and base components.
+ * Uses tokens from theme.css only.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.15rem; }
+
+p {
+  margin: 0 0 var(--space-4);
+}
+
+/* ---------- Material Symbols ---------- */
+
+.icon {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* ---------- Shell grid ---------- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: var(--topbar-height) 1fr minmax(var(--footer-height), auto);
+  grid-template-areas:
+    "topbar  topbar"
+    "sidebar main"
+    "footer  footer";
+  height: 100dvh;
+}
+
+/* ---------- Top bar ---------- */
+
+/* Three columns: app icon + name | search (exactly centred) | action icons */
+.topbar {
+  grid-area: topbar;
+  position: relative;
+  display: grid;
+  /* Equal side columns keep the search exactly centred; they never shrink below their content */
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 520px) minmax(max-content, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 20;
+}
+
+.topbar-start {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.app-icon {
+  width: 32px;
+  height: 32px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.app-name {
+  max-width: 240px;
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ---------- Search ---------- */
+
+.search {
+  position: relative;
+  min-width: 0;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.search-field:focus-within {
+  border-color: transparent;
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.search-field .icon {
+  font-size: 20px;
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-shortcut {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.search-field:focus-within .search-shortcut {
+  display: none;
+}
+
+/* Close button and the search icon in the action bar are only used on phones */
+.icon-button.search-close,
+.icon-button.search-open {
+  display: none;
+}
+
+.search-results {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-drawer);
+  z-index: 40;
+}
+
+.search-results[hidden] {
+  display: none;
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.search-result .icon {
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+
+.search-result span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.search-result small {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.search-result[aria-selected="true"],
+.search-result:hover {
+  background: var(--color-surface-hover);
+}
+
+.search-empty {
+  padding: var(--space-3);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+/* Medium widths: hide the shortcut hint, then the app name */
+@media (max-width: 1000px) {
+  .search-shortcut {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-name {
+    display: none;
+  }
+}
+
+/* Phones: search collapses to an icon; when opened it covers the whole top bar */
+@media (max-width: 560px) {
+  .search {
+    display: none;
+  }
+
+  .icon-button.search-open,
+  .icon-button.search-close {
+    display: inline-grid;
+  }
+
+  .topbar.search-active .search {
+    position: absolute;
+    inset: 0;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    display: flex;
+    align-items: center;
+    background: var(--color-surface);
+    z-index: 5;
+  }
+
+  .topbar.search-active .search-field {
+    flex: 1;
+  }
+
+  .topbar.search-active .search-results {
+    left: var(--space-2);
+    right: var(--space-2);
+    top: calc(100% - var(--space-1));
+  }
+}
+
+/* ---------- Icon button ---------- */
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.icon-button:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.icon-button:focus-visible,
+.nav-link:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Only shown on narrow screens */
+.menu-toggle {
+  display: none;
+  margin-left: calc(var(--space-2) * -1);
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  grid-area: sidebar;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-2);
+}
+
+.nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-section {
+  margin: var(--space-4) var(--space-3) var(--space-1);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background var(--transition), color var(--transition);
+}
+
+.nav-link .icon {
+  color: var(--color-text-muted);
+  font-size: 20px;
+}
+
+.nav-link:hover {
+  background: var(--color-surface-hover);
+}
+
+.nav-link[aria-current="page"] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.nav-link[aria-current="page"] .icon {
+  color: var(--color-accent);
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* ---------- Menu groups (sub menus) ---------- */
+
+.nav-group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-chevron {
+  margin-left: auto;
+  transition: transform var(--transition);
+}
+
+.nav-group-toggle[aria-expanded="true"] .nav-chevron {
+  transform: rotate(180deg);
+}
+
+/* The group's own label and icon turn accent-coloured while one of its pages is open */
+.nav-group.has-active > .nav-group-toggle,
+.nav-group.has-active > .nav-group-toggle .icon {
+  color: var(--color-accent);
+}
+
+.nav-sub {
+  margin-top: 2px;
+}
+
+.nav-sub[hidden] {
+  display: none;
+}
+
+/* Line sub entries up with the parent's label: link padding + icon + gap */
+.nav-sub .nav-link {
+  padding-left: calc(var(--space-3) + 20px + var(--space-3));
+}
+
+/* ---------- Main ---------- */
+
+.main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+.page {
+  max-width: 960px;
+}
+
+.page[hidden] {
+  display: none;
+}
+
+.page-header {
+  margin-bottom: var(--space-5);
+}
+
+.page-header p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Small label above the <h1> of a sub page, naming its menu group */
+.page-header .breadcrumb {
+  margin-bottom: var(--space-1);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  grid-area: footer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8rem;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.footer p {
+  margin: 0;
+}
+
+.footer a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.footer a:hover {
+  color: var(--color-accent);
+}
+
+/* ---------- Content components ---------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.card > :last-child {
+  margin-bottom: 0;
+}
+
+/* Optional header strip at the top of a card: icon + title on a tinted background */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: calc(var(--space-5) * -1) calc(var(--space-5) * -1) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.card-header .icon {
+  font-size: 20px;
+  color: var(--color-accent);
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--color-primary-hover);
+}
+
+.button .icon {
+  font-size: 18px;
+}
+
+.button.secondary {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.button.secondary:hover {
+  background: var(--color-surface-hover);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+/* Table: wrap in .table-wrap so wide tables scroll inside the card on phones */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Simple list with an icon per row */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.list li:first-child {
+  padding-top: 0;
+}
+
+.list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.list .icon {
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+
+.list li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.list small {
+  font-size: 0.8rem;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.details dt {
+  color: var(--color-text-muted);
+}
+
+.details dd {
+  margin: 0;
+}
+
+/* ---------- Dropdown menu ---------- */
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  min-width: 200px;
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-drawer);
+  z-index: 40;
+}
+
+.dropdown-menu[hidden] {
+  display: none;
+}
+
+.dropdown-header {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.dropdown-item .icon {
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+  background: var(--color-surface-hover);
+  outline: none;
+}
+
+/* ---------- Signed in / signed out ---------- */
+
+:root[data-auth="out"] .app,
+:root:not([data-auth="out"]) .login {
+  display: none;
+}
+
+/* ---------- Login ---------- */
+
+.login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.login-card {
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+
+.login-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.login-title .app-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.login-card .button {
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
+/* ---------- Form controls ---------- */
+
+/* <label class="field"><span>Label</span><input|select|textarea><small class="field-hint">…</small></label> */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.field textarea {
+  height: auto;
+  min-height: 88px;
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* Select: native control with our own chevron (Material Symbols "expand_more") */
+.select {
+  position: relative;
+  display: block;
+}
+
+.field select {
+  appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.select::after {
+  content: "expand_more";
+  font-family: "Material Symbols Outlined";
+  font-feature-settings: "liga";
+  font-size: 20px;
+  line-height: 1;
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-error);
+}
+
+/* Checkbox with a label and optional hint:
+   <label class="check"><input type="checkbox"><span>Label<small class="field-hint">…</small></span></label> */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.check input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Layout helpers for forms */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form-grid + .form-stack,
+.form-stack + .form-grid {
+  margin-top: var(--space-4);
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.form-status {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Narrow screens: sidebar becomes a drawer ---------- */
+
+.scrim {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "main"
+      "footer";
+  }
+
+  .menu-toggle {
+    display: inline-grid;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: var(--topbar-height);
+    bottom: 0;
+    left: 0;
+    width: min(var(--sidebar-width), 85vw);
+    z-index: 30;
+    transform: translateX(-100%);
+    visibility: hidden; /* keeps the closed drawer out of the tab order */
+    transition: transform var(--transition), visibility 0s linear var(--transition);
+    box-shadow: none;
+  }
+
+  .app.nav-open .sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform var(--transition);
+    box-shadow: var(--shadow-drawer);
+  }
+
+  .app.nav-open .scrim {
+    display: block;
+    position: fixed;
+    inset: var(--topbar-height) 0 0 0;
+    background: rgb(0 0 0 / 0.35);
+    z-index: 25;
+  }
+
+  .main {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

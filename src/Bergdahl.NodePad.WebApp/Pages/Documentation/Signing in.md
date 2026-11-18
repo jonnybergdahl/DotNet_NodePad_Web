@@ -4,8 +4,8 @@ NodePad is protected by a single account. Everything — the app, the API and yo
 
 - First start: open NodePad in your browser and you will be asked to create your account (username and password, at least 6 characters). Do this right after installing, since whoever opens the app first gets to create the account.
 - The account is stored in nodepad.auth.json next to nodepad.json (it is git-ignored). The password is stored as a salted PBKDF2 hash, never in plain text.
-- Change your password on the "Password" tab in Settings (the gear button in the top bar). Other browsers that are signed in will be signed out.
-- Sign out with the sign-out button in the top-right corner.
+- Change your password on the Account page: click the account button at the right end of the top bar and choose "Account". Other browsers that are signed in will be signed out.
+- Sign out with "Logout" in the same account menu.
 - Forgot your password? Stop NodePad, delete nodepad.auth.json, start it again and create a new account.
 - Too many failed sign-in attempts from the same address are blocked for a minute.
 

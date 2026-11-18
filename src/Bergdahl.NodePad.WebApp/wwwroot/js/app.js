@@ -86,31 +86,9 @@ if (tagsView) {
     });
 }
 
-// Theme switcher
-const themeToggle = document.getElementById('theme-toggle');
+// Theme: js/theme.js handles the toggle (system, light, dark) and sets <html data-theme>.
+// The Toast UI viewer and editor take their theme as an option, so they are recreated when it changes.
 const prefersDarkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-function applyTheme(mode) {
-    const root = document.documentElement;
-    if (mode === 'light') {
-        root.setAttribute('data-theme', 'light');
-    } else if (mode === 'dark') {
-        root.setAttribute('data-theme', 'dark');
-    } else {
-        // system: remove explicit override and rely on media query
-        root.removeAttribute('data-theme');
-    }
-    updateThemeToggle();
-}
-
-// The toggle shows the theme a click switches to
-function updateThemeToggle() {
-    if (!themeToggle) return;
-    const next = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
-    themeToggle.querySelector('.material-symbols-rounded').textContent = next === 'dark' ? 'dark_mode' : 'light_mode';
-    themeToggle.title = next === 'dark' ? 'Switch to dark theme' : 'Switch to light theme';
-    themeToggle.setAttribute('aria-label', themeToggle.title);
-}
 
 function getEffectiveTheme() {
     // Returns 'dark' or 'light' based on data-theme or system preference
@@ -119,16 +97,6 @@ function getEffectiveTheme() {
     if (explicit === 'dark') return 'dark';
     if (explicit === 'light') return 'light';
     return prefersDarkQuery.matches ? 'dark' : 'light';
-}
-
-function initTheme() {
-    const saved = localStorage.getItem('theme');
-    if (saved === 'light' || saved === 'dark') {
-        applyTheme(saved);
-    } else {
-        // No saved preference: follow system
-        applyTheme(); // removes override
-    }
 }
 
 function applyToastUITheme() {
@@ -151,25 +119,16 @@ function applyToastUITheme() {
     }
 }
 
-if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-        const mode = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
-        localStorage.setItem('theme', mode);
-        applyTheme(mode);
-        applyToastUITheme();
-    });
+// Recreate the viewer and editor only when the effective theme actually changes (system -> light can be a no-op)
+let toastUITheme = getEffectiveTheme();
+function onThemeChange() {
+    const mode = getEffectiveTheme();
+    if (mode === toastUITheme) return;
+    toastUITheme = mode;
+    applyToastUITheme();
 }
-
-// Update if system preference changes while following system (no explicit choice saved)
-prefersDarkQuery.addEventListener('change', () => {
-    const saved = localStorage.getItem('theme');
-    if (!saved) {
-        applyTheme();
-        applyToastUITheme();
-    }
-});
-
-initTheme();
+new MutationObserver(onThemeChange).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+prefersDarkQuery.addEventListener('change', onThemeChange);
 
 // Resolve Toast UI Code Syntax Highlight plugin from various possible globals (CDN variants)
 function resolveCodeSyntaxPlugin() {
@@ -200,9 +159,9 @@ const modalCancelBtn = document.getElementById('modal-cancel-btn');
 const modalCloseBtn = document.getElementById('modal-close-btn');
 
 // Page addresses: the open note is shown in the URL as /#/Folder/Note (without .md), so notes can be
-// bookmarked, shared and linked to, and back/forward work. The bare address is the home page (index.md),
-// and the To do page is /#todo.
-const TODO_HASH = '#todo';
+// bookmarked, shared and linked to, and back/forward work. The bare address is the home page (index.md).
+// The other pages have fixed addresses: /#todo, /#settings and /#account.
+const APP_PAGE_HASHES = { '#todo': 'todo', '#settings': 'settings', '#account': 'account' };
 
 function safeDecode(str) {
     try { return decodeURIComponent(str); } catch { return str; }
@@ -212,7 +171,7 @@ function pageHash(path) {
     return '#/' + path.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/');
 }
 
-// Note path in a #/ address, or null when the hash is something else (an in-page anchor, #todo)
+// Note path in a #/ address, or null when the hash is something else (an in-page anchor, #todo, #settings)
 function pathFromHash(hash) {
     if (!hash || !hash.startsWith('#/')) return null;
     const parts = hash.substring(2).split('/').filter(Boolean).map(safeDecode);
@@ -264,19 +223,60 @@ const noteLinkRenderer = {
     }
 };
 
-// Shows what the address points at (back/forward, a clicked note link, an address typed or opened from outside)
+// Shows what the address points at (back/forward, a clicked note link or menu entry, an address typed or opened from outside)
 async function navigateToUrl() {
-    if (location.hash === TODO_HASH) {
-        if (!todoViewActive) await showTodoView();
+    const page = APP_PAGE_HASHES[location.hash];
+    if (page) {
+        if (activePage !== page) await openAppPage(page);
         // Staying put (unsaved changes): put the address of the open note back
-        if (!todoViewActive) setPageUrl(currentPath, true);
+        if (activePage !== page) setPageUrl(currentPath, true);
         return;
     }
     const path = urlPagePath();
-    if (!path || (path === currentPath && !todoViewActive)) return;
+    if (!path || (path === currentPath && activePage === 'notes')) return;
     expandAncestorsForPath(path, false);
     await loadFile(path);
     if (currentPath !== path) setPageUrl(currentPath, true);
+}
+
+// Saves or keeps the note being edited before leaving it; false when the user chose to stay
+async function confirmLeaveEdit() {
+    if (hasUnsavedChanges()) {
+        const save = await showModal('Unsaved Changes', 'Do you want to save your changes?', false);
+        if (save === true) {
+            await saveFile();
+        } else if (save === null) {
+            return false;
+        }
+        cancelEdit();
+    } else if (isEditMode) {
+        cancelEdit();
+    }
+    return true;
+}
+
+// Opens the To do, Settings or Account page in place of the note. Without an edit in progress the page is
+// switched before the first await, so code running right after the call already sees the new activePage.
+async function openAppPage(name) {
+    if (activePage === name) return;
+    if (activePage === 'notes' && isEditMode && !(await confirmLeaveEdit())) return;
+    if (location.hash !== `#${name}`) setUrl(`#${name}`);
+    showAppPage(name);
+    // Nothing in the tree is shown as selected while another page is open
+    document.querySelectorAll('#menu .menu-item.selected').forEach(el => el.classList.remove('selected'));
+    if (name === 'todo') await loadTodos();
+    else if (name === 'settings') loadSettingsPage();
+}
+
+// Back to the open note, from another page
+function showNotesPage() {
+    if (activePage === 'notes') return;
+    showAppPage('notes');
+    setAppTitle(noteTitle(currentPath));
+}
+
+function noteTitle(path) {
+    return path ? path.split('/').pop().replace(/\.md$/i, '') : '';
 }
 
 window.addEventListener('hashchange', navigateToUrl);
@@ -302,9 +302,9 @@ function createViewer(initialMarkdown) {
 
 createViewer();
 
-// Open the note (or To do page) in the address, otherwise attempt to load default index.md on startup
+// Open the note (or other page) in the address, otherwise attempt to load default index.md on startup
 async function initDefaultPage() {
-    if (location.hash === TODO_HASH || pathFromHash(location.hash)) {
+    if (APP_PAGE_HASHES[location.hash] || pathFromHash(location.hash)) {
         return navigateToUrl();
     }
     try {
@@ -314,6 +314,7 @@ async function initDefaultPage() {
             currentPath = 'index.md';
             currentContent = content;
             viewer.setMarkdown(content);
+            if (activePage === 'notes') setAppTitle(noteTitle(currentPath));
             updateToolbar();
             // Sync selection highlight in menu
             loadMenu();
@@ -396,10 +397,11 @@ function showToast(message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
     toast.innerHTML = `
-        <span class="toast-icon material-symbols-rounded">${icons[type] || icons.info}</span>
+        <span class="icon toast-icon">${icons[type] || icons.info}</span>
         <span class="toast-message">${message}</span>
-        <button class="icon-button toast-close" aria-label="Close"><span class="material-symbols-rounded">close</span></button>
+        <button class="icon-button toast-close" type="button" aria-label="Close" title="Close"><span class="icon">close</span></button>
     `;
 
     toastContainer.appendChild(toast);
@@ -426,9 +428,15 @@ function renderBreadcrumbs() {
     // Helper to clear and re-render
     breadcrumbsEl.innerHTML = '';
 
+    function makeCrumb() {
+        const crumb = document.createElement('button');
+        crumb.type = 'button';
+        crumb.className = 'crumb';
+        return crumb;
+    }
+
     // Add Home crumb always
-    const homeCrumb = document.createElement('span');
-    homeCrumb.className = 'crumb';
+    const homeCrumb = makeCrumb();
     homeCrumb.textContent = 'Home';
     homeCrumb.addEventListener('click', () => {
         selectedFolderPath = '';
@@ -441,8 +449,9 @@ function renderBreadcrumbs() {
 
     function addSep() {
         const sep = document.createElement('span');
-        sep.className = 'sep';
-        sep.textContent = '›';
+        sep.className = 'icon sep';
+        sep.setAttribute('aria-hidden', 'true');
+        sep.textContent = 'chevron_right';
         breadcrumbsEl.appendChild(sep);
     }
 
@@ -451,8 +460,7 @@ function renderBreadcrumbs() {
         for (let i = 0; i < serverBreadcrumbs.length; i++) {
             const item = serverBreadcrumbs[i];
             addSep();
-            const crumb = document.createElement('span');
-            crumb.className = 'crumb';
+            const crumb = makeCrumb();
             crumb.textContent = item.name || item.Name || '';
             const isLast = i === serverBreadcrumbs.length - 1;
             if (!isLast) {
@@ -492,8 +500,7 @@ function renderBreadcrumbs() {
     for (let i = 0; i < loopCount; i++) {
         addSep();
         acc = i === 0 ? parts[0] : acc + '/' + parts[i];
-        const crumb = document.createElement('span');
-        crumb.className = 'crumb';
+        const crumb = makeCrumb();
         crumb.textContent = parts[i];
         crumb.addEventListener('click', () => {
             selectedFolderPath = acc;
@@ -509,8 +516,7 @@ function renderBreadcrumbs() {
         const fileName = parts[parts.length - 1];
         if (fileName) {
             addSep();
-            const fileCrumb = document.createElement('span');
-            fileCrumb.className = 'crumb';
+            const fileCrumb = makeCrumb();
             fileCrumb.textContent = fileName;
             fileCrumb.addEventListener('click', () => {
                 // Reload file explicitly
@@ -543,7 +549,10 @@ function updateToolbar() {
         if (btnRename) btnRename.style.display = (currentPath || selectedFolderPath) ? 'inline-flex' : 'none';
     }
     // Keep the address in sync after renames, moves and deletes (opening a note adds its own history entry)
-    if (!todoViewActive) setPageUrl(currentPath, true);
+    if (activePage === 'notes') {
+        setPageUrl(currentPath, true);
+        setAppTitle(noteTitle(currentPath));
+    }
     // Keep breadcrumbs in sync with current selection
     renderBreadcrumbs();
     // Keep tags UI in sync
@@ -586,6 +595,7 @@ btnEdit.addEventListener('click', function() {
 
     const editorContainer = document.createElement('div');
     editorContainer.id = 'editor-edit';
+    editorContainer.className = 'note-card';
     const editorEl = document.getElementById('editor');
     editorEl.parentNode.insertBefore(editorContainer, editorEl);
 
@@ -832,20 +842,21 @@ function tagDisplay(norm) { return allKnownTags.get(norm) || norm; }
 function renderMenuHeader() {
     const count = tagFilter.length;
     const badge = count ? `<span class="tag-filter-badge">${count}</span>` : '';
+    // The "Pages" section heading is also the drop zone for moving items to the root folder
     const header = `
     <div class="menu-header">
-        <div id="root-dropzone" class="root-dropzone" aria-label="Pages"></div>
+        <div id="root-dropzone" class="root-dropzone">Pages</div>
         <button type="button" id="tag-filter-btn" class="icon-button tag-filter-btn${count ? ' active' : ''}"
                 title="Filter by tag" aria-label="Filter by tag" aria-haspopup="dialog" aria-controls="tag-filter-popover"
                 aria-expanded="${tagFilterPopover && !tagFilterPopover.hidden}">
-            <span class="material-symbols-rounded">filter_list</span>${badge}
+            <span class="icon">filter_list</span>${badge}
         </button>
     </div>`;
     if (!count) return header;
     const chips = tagFilter.map(norm => {
         const display = escapeHtml(tagDisplay(norm));
         return `<button type="button" class="active-tag-chip" data-tag="${escapeHtml(norm)}" title="Remove filter: ${display}">` +
-               `<span>${display}</span><span class="material-symbols-rounded" aria-hidden="true">close</span></button>`;
+               `<span>${display}</span><span class="icon" aria-hidden="true">close</span></button>`;
     }).join('');
     return header + `<div class="active-tag-filters" aria-label="Active tag filters">${chips}</div>`;
 }
@@ -1137,11 +1148,11 @@ function renderTree(nodes, depth = 0) {
         const isFolder = node.type !== 'file';
         const expanded = isFolder ? isExpanded(node.path, depth) : false;
         const hasChildren = !!(node.children && node.children.length);
-        // While the ToDo page is open nothing in the tree is shown as selected
-        const isSelected = !todoViewActive && (isFolder ? (node.path === selectedFolderPath) : (!selectedFolderPath && node.path === currentPath));
+        // While another page (To do, Settings, Account) is open nothing in the tree is shown as selected
+        const isSelected = activePage === 'notes' && (isFolder ? (node.path === selectedFolderPath) : (!selectedFolderPath && node.path === currentPath));
         const liClasses = [isFolder ? 'folder' : 'file', expanded && isFolder ? 'expanded' : 'collapsed'].filter(Boolean).join(' ');
-        const caret = isFolder ? `<span class="caret" data-toggle="${node.path}" aria-label="Toggle" role="button"><span class="material-symbols-rounded">${expanded ? 'expand_more' : 'chevron_right'}</span></span>` : '';
-        const icon = `<span class="material-symbols-rounded icon">${isFolder ? (expanded ? 'folder_open' : 'folder') : 'description'}</span>`;
+        const caret = isFolder ? `<span class="caret" data-toggle="${node.path}" aria-label="Toggle" role="button"><span class="icon">${expanded ? 'expand_more' : 'chevron_right'}</span></span>` : '';
+        const icon = `<span class="icon tree-icon">${isFolder ? (expanded ? 'folder_open' : 'folder') : 'description'}</span>`;
         const item = isFolder ?
             `<div class="menu-item folder-item ${isSelected ? 'selected' : ''}" data-folder-path="${node.path}">
                 ${caret}
@@ -1149,7 +1160,7 @@ function renderTree(nodes, depth = 0) {
             </div>` :
             `<div class="menu-item ${isSelected ? 'selected' : ''}">
                 ${caret}
-                <a href="#" class="file-link">${icon}<span class="node-name">${node.name.replace(/\.md$/i, '')}</span></a>
+                <a href="${pageHash(node.path)}" class="file-link"${isSelected ? ' aria-current="page"' : ''}>${icon}<span class="node-name">${node.name.replace(/\.md$/i, '')}</span></a>
             </div>`;
         const children = isFolder && hasChildren ? renderTree(node.children, depth + 1) : (isFolder ? '<ul class="tree-level empty" data-depth="' + (depth + 1) + '"></ul>' : '');
         return `
@@ -1350,9 +1361,11 @@ menu.addEventListener('click', function(e) {
 
     if (e.target.classList.contains('folder-item') || e.target.closest('.folder-item')) {
         const folderItem = e.target.classList.contains('folder-item') ? e.target : e.target.closest('.folder-item');
-        hideTodoView();
-        // Leaving the To do page shows the open note again
-        if (location.hash === TODO_HASH) setPageUrl(currentPath);
+        // Leaving another page shows the open note again
+        if (activePage !== 'notes') {
+            showNotesPage();
+            setPageUrl(currentPath);
+        }
         currentFolderPath = folderItem.dataset.folderPath;
         selectedFolderPath = currentFolderPath;
         // Re-render to show selected state on the clicked folder
@@ -1436,21 +1449,14 @@ function deleteEntity(name, type, path) {
 }
 
 async function loadFile(path) {
-    if (hasUnsavedChanges()) {
-        const save = await showModal('Unsaved Changes', 'Do you want to save your changes?', false);
-        if (save === true) {
-            await saveFile();
-        } else if (save === null) {
-            return;
-        }
-        cancelEdit();
-    } else if (isEditMode) {
-        cancelEdit();
-    }
+    if (!(await confirmLeaveEdit())) return;
 
-    hideTodoView();
     currentPath = path;
+    showNotesPage();
+    setAppTitle(noteTitle(path));
     setPageUrl(path);
+    // On phones, picking a note closes the menu drawer
+    setNavOpen(false);
     viewer.setMarkdown('Loading...');
 
     try {
@@ -1585,393 +1591,3 @@ window.addEventListener('beforeunload', function(e) {
 initDefaultPage();
 updateToolbar();
 loadMenu();
-// Search UI and logic
-(function(){
-    const searchInput = document.getElementById('search-input');
-    const searchButton = document.getElementById('search-button');
-    const searchResults = document.getElementById('search-results');
-    if (!searchInput || !searchButton) return;
-
-    let outsideClickHandler = null;
-    let escapeHandler = null;
-
-    function showAnchoredResults(q, items){
-        if (!searchResults) return;
-        const html = ['<ul>',
-            ...items.map(it => {
-                const title = (it.title || it.path || '').toString();
-                const path = (it.path || '').toString();
-                const snippet = (it.snippet || '').toString();
-                return `<li data-path="${path}">`+
-                       `<div class="result-title">${escapeHtml(title)}</div>`+
-                       `<div class="result-path">${escapeHtml(path)}</div>`+
-                       (snippet ? `<div class="result-snippet">${escapeHtml(snippet)}</div>` : '')+
-                       `</li>`;
-            }),
-            '</ul>'].join('');
-        searchResults.innerHTML = html;
-        searchResults.hidden = false;
-        searchResults.classList.remove('hidden');
-
-        // Attach handlers
-        searchResults.addEventListener('click', onResultClick);
-        outsideClickHandler = (ev)=>{
-            const within = ev.target.closest('#search-results') || ev.target.closest('.title-search');
-            if (!within) closeAnchoredResults();
-        };
-        escapeHandler = (ev)=>{ if (ev.key === 'Escape') closeAnchoredResults(); };
-        window.addEventListener('click', outsideClickHandler, { capture: true });
-        window.addEventListener('keydown', escapeHandler);
-    }
-
-    function closeAnchoredResults(){
-        if (!searchResults) return;
-        searchResults.hidden = true;
-        searchResults.classList.add('hidden');
-        searchResults.innerHTML = '';
-        searchResults.removeEventListener('click', onResultClick);
-        if (outsideClickHandler) window.removeEventListener('click', outsideClickHandler, { capture: true });
-        if (escapeHandler) window.removeEventListener('keydown', escapeHandler);
-        outsideClickHandler = null;
-        escapeHandler = null;
-    }
-
-    async function performSearch() {
-        const q = (searchInput.value || '').trim();
-        if (q.length < 2) {
-            showToast('Please enter at least 2 characters to search.', 'info');
-            return;
-        }
-        try {
-            const res = await fetch(`/api/pages/search?query=${encodeURIComponent(q)}`);
-            if (!res.ok) {
-                showToast(`Search failed (${res.status})`, 'error');
-                return;
-            }
-            const items = await res.json();
-            if (!Array.isArray(items) || items.length === 0) {
-                // Show an empty state anchored panel
-                showAnchoredResults(q, [{ title: 'No results', path: '', snippet: `No matches for "${q}".` }]);
-                return;
-            }
-            showAnchoredResults(q, items);
-        } catch (e) {
-            console.error('Search error', e);
-            showToast('Search error. See console for details.', 'error');
-        }
-    }
-
-    function onResultClick(e) {
-        const li = e.target.closest('li[data-path]');
-        if (!li) return;
-        const path = li.getAttribute('data-path');
-        if (!path) { return; }
-        // Expand ancestors in the tree and load the file
-        try { expandAncestorsForPath(path, false); } catch {}
-        loadMenu();
-        closeAnchoredResults();
-        loadFile(path);
-    }
-
-    searchButton.addEventListener('click', performSearch);
-    searchInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ performSearch(); }});
-})();
-
-
-// Settings UI logic
-(function(){
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsOverlay = document.getElementById('settings-overlay');
-    const settingsCloseBtn = document.getElementById('settings-close-btn');
-    const settingsCancelBtn = document.getElementById('settings-cancel-btn');
-    const settingsSaveBtn = document.getElementById('settings-save-btn');
-
-    const inputAllowedHosts = document.getElementById('settings-allowed-hosts');
-    const inputPagesDir = document.getElementById('settings-pages-dir');
-    const inputBackupDir = document.getElementById('settings-backup-dir');
-
-    let originalSettings = null;
-
-    // Tabs: Settings, Password, MCP Server, To do lists, Home Assistant. Save/Cancel only apply to the Settings tab.
-    const settingsTabs = settingsOverlay ? Array.from(settingsOverlay.querySelectorAll('.settings-tab')) : [];
-
-    function selectSettingsTab(name, focus = false) {
-        settingsTabs.forEach(tab => {
-            const selected = tab.dataset.tab === name;
-            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
-            tab.tabIndex = selected ? 0 : -1;
-            const panel = document.getElementById(tab.getAttribute('aria-controls'));
-            if (panel) panel.hidden = !selected;
-            if (selected && focus) tab.focus();
-        });
-        const isGeneral = name === 'general';
-        if (settingsSaveBtn) settingsSaveBtn.hidden = !isGeneral;
-        if (settingsCancelBtn) settingsCancelBtn.textContent = isGeneral ? 'Cancel' : 'Close';
-        if (name === 'todo') loadSettingsTodoLists();
-        if (name === 'ha') loadHomeAssistant();
-    }
-
-    settingsTabs.forEach((tab, index) => {
-        tab.addEventListener('click', () => selectSettingsTab(tab.dataset.tab));
-        tab.addEventListener('keydown', (e) => {
-            let next = null;
-            if (e.key === 'ArrowRight') next = settingsTabs[(index + 1) % settingsTabs.length];
-            else if (e.key === 'ArrowLeft') next = settingsTabs[(index - 1 + settingsTabs.length) % settingsTabs.length];
-            else if (e.key === 'Home') next = settingsTabs[0];
-            else if (e.key === 'End') next = settingsTabs[settingsTabs.length - 1];
-            if (next) {
-                e.preventDefault();
-                selectSettingsTab(next.dataset.tab, true);
-            }
-        });
-    });
-
-    function openSettings() {
-        selectSettingsTab('general');
-        settingsOverlay && settingsOverlay.classList.add('active');
-    }
-    function closeSettings() {
-        settingsOverlay && settingsOverlay.classList.remove('active');
-    }
-
-    async function loadSettings() {
-        try {
-            const res = await fetch('/api/settings');
-            if (!res.ok) throw new Error('Failed to load settings');
-            const data = await res.json();
-            originalSettings = data;
-            if (inputAllowedHosts) inputAllowedHosts.value = data.allowedHosts ?? data.AllowedHosts ?? '';
-            if (inputPagesDir) inputPagesDir.value = data.pagesDirectory ?? data.PagesDirectory ?? '';
-            if (inputBackupDir) inputBackupDir.value = data.backupDirectory ?? data.BackupDirectory ?? '';
-        } catch (err) {
-            showToast && showToast('Failed to load settings', 'error');
-        }
-    }
-
-    async function saveSettings() {
-        const payload = {
-            allowedHosts: inputAllowedHosts ? inputAllowedHosts.value : undefined,
-            pagesDirectory: inputPagesDir ? inputPagesDir.value : undefined,
-            backupDirectory: inputBackupDir ? inputBackupDir.value : undefined,
-        };
-        try {
-            const res = await fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) throw new Error('Save failed');
-            const data = await res.json();
-            showToast && showToast('Settings saved', 'success');
-            // Warn about PagesDirectory change
-            const oldPages = originalSettings?.pagesDirectory ?? originalSettings?.PagesDirectory ?? '';
-            const newPages = data.pagesDirectory ?? data.PagesDirectory ?? '';
-            if (oldPages !== newPages) {
-                showToast && showToast('PagesDirectory changed. Restart the app to update static file serving.', 'warning');
-            }
-            closeSettings();
-        } catch (err) {
-            showToast && showToast('Failed to save settings', 'error');
-        }
-    }
-
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', async () => {
-            await loadSettings();
-            openSettings();
-        });
-    }
-    if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', closeSettings);
-    if (settingsCancelBtn) settingsCancelBtn.addEventListener('click', closeSettings);
-    if (settingsOverlay) settingsOverlay.addEventListener('click', (e) => {
-        if (e.target === settingsOverlay) closeSettings();
-    });
-    if (settingsSaveBtn) settingsSaveBtn.addEventListener('click', saveSettings);
-
-    // Change password
-    const passwordBtn = document.getElementById('settings-password-btn');
-    const inputCurrentPassword = document.getElementById('settings-current-password');
-    const inputNewPassword = document.getElementById('settings-new-password');
-    const inputConfirmPassword = document.getElementById('settings-confirm-password');
-
-    async function changePassword() {
-        const currentPassword = inputCurrentPassword.value;
-        const newPassword = inputNewPassword.value;
-        if (!currentPassword || !newPassword) {
-            showToast && showToast('Enter your current and new password', 'warning');
-            return;
-        }
-        if (newPassword !== inputConfirmPassword.value) {
-            showToast && showToast('New passwords do not match', 'warning');
-            return;
-        }
-        try {
-            const res = await fetch('/api/auth/change-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentPassword, newPassword })
-            });
-            if (!res.ok) {
-                let message = 'Failed to change password';
-                if (res.status === 429) message = 'Too many attempts. Wait a minute and try again.';
-                else { try { message = (await res.json()).error || message; } catch { } }
-                showToast && showToast(message, 'error');
-                return;
-            }
-            inputCurrentPassword.value = inputNewPassword.value = inputConfirmPassword.value = '';
-            showToast && showToast('Password changed', 'success');
-        } catch (err) {
-            showToast && showToast('Failed to change password', 'error');
-        }
-    }
-    if (passwordBtn) passwordBtn.addEventListener('click', changePassword);
-
-    // MCP API key
-    const mcpUrlInput = document.getElementById('settings-mcp-url');
-    const mcpStatus = document.getElementById('settings-mcp-status');
-    const mcpKeyRow = document.getElementById('settings-mcp-key-row');
-    const mcpKeyInput = document.getElementById('settings-mcp-key');
-    const mcpCopyBtn = document.getElementById('settings-mcp-copy-btn');
-    const mcpGenerateBtn = document.getElementById('settings-mcp-generate-btn');
-    const mcpRevokeBtn = document.getElementById('settings-mcp-revoke-btn');
-
-    function renderMcpStatus(exists) {
-        if (mcpStatus) mcpStatus.textContent = exists
-            ? 'An API key is active. Generating a new key replaces it.'
-            : 'No API key yet. MCP access is disabled until you generate one.';
-        if (mcpGenerateBtn) mcpGenerateBtn.textContent = exists ? 'Generate new API key' : 'Generate API key';
-        if (mcpRevokeBtn) mcpRevokeBtn.hidden = !exists;
-    }
-
-    async function loadMcpStatus() {
-        if (mcpUrlInput) mcpUrlInput.value = `${location.origin}/mcp`;
-        if (mcpKeyRow) mcpKeyRow.hidden = true;
-        if (mcpKeyInput) mcpKeyInput.value = '';
-        try {
-            const res = await fetch('/api/auth/api-key');
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            renderMcpStatus((await res.json()).exists);
-        } catch {
-            if (mcpStatus) mcpStatus.textContent = 'Could not load API key status.';
-        }
-    }
-
-    async function generateMcpKey() {
-        try {
-            const res = await fetch('/api/auth/api-key', { method: 'POST' });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            if (mcpKeyInput) mcpKeyInput.value = data.apiKey;
-            if (mcpKeyRow) mcpKeyRow.hidden = false;
-            renderMcpStatus(true);
-            mcpKeyInput && mcpKeyInput.select();
-        } catch {
-            showToast && showToast('Failed to generate API key', 'error');
-        }
-    }
-
-    async function revokeMcpKey() {
-        try {
-            const res = await fetch('/api/auth/api-key', { method: 'DELETE' });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            if (mcpKeyRow) mcpKeyRow.hidden = true;
-            if (mcpKeyInput) mcpKeyInput.value = '';
-            renderMcpStatus(false);
-            showToast && showToast('API key revoked', 'success');
-        } catch {
-            showToast && showToast('Failed to revoke API key', 'error');
-        }
-    }
-
-    async function copyMcpKey() {
-        try {
-            await navigator.clipboard.writeText(mcpKeyInput.value);
-            showToast && showToast('API key copied', 'success');
-        } catch {
-            mcpKeyInput.select();
-            showToast && showToast('Press Ctrl+C / Cmd+C to copy the key', 'info');
-        }
-    }
-
-    if (mcpGenerateBtn) mcpGenerateBtn.addEventListener('click', generateMcpKey);
-    if (mcpRevokeBtn) mcpRevokeBtn.addEventListener('click', revokeMcpKey);
-    if (mcpCopyBtn) mcpCopyBtn.addEventListener('click', copyMcpKey);
-    if (settingsBtn) settingsBtn.addEventListener('click', loadMcpStatus);
-
-    // Home Assistant sync of the to do lists
-    const haPanel = document.getElementById('settings-panel-ha');
-    const haUrlInput = document.getElementById('settings-ha-url');
-    const haTokenInput = document.getElementById('settings-ha-token');
-    const haActiveInput = document.getElementById('settings-ha-active');
-    const haStatus = document.getElementById('settings-ha-status');
-    const haSaveBtn = document.getElementById('settings-ha-save-btn');
-
-    function renderHomeAssistant(data, showInputs) {
-        if (showInputs) {
-            if (haUrlInput) haUrlInput.value = data.url || '';
-            if (haActiveInput) haActiveInput.checked = !!data.active;
-            if (haTokenInput) {
-                // The token is never sent back; an empty field keeps the saved one
-                haTokenInput.value = '';
-                haTokenInput.placeholder = data.hasToken ? 'Saved; leave empty to keep it' : '';
-            }
-        }
-        if (!haStatus) return;
-        let text;
-        if (!data.active) text = 'Syncing is off.';
-        else if (data.connectionError) text = `Could not connect: ${data.connectionError}`;
-        else if (data.connected) text = 'Connected.';
-        else text = data.lastError ? `Not connected: ${data.lastError}. Retrying.` : 'Connecting…';
-        if (data.active && data.lastSync) text += ` Last synced ${new Date(data.lastSync).toLocaleString()}.`;
-        if (data.active && data.connected && data.lastError) text += ` Last error: ${data.lastError}`;
-        haStatus.textContent = text;
-    }
-
-    async function loadHomeAssistant(showInputs = true) {
-        try {
-            const res = await fetch('/api/settings/home-assistant');
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            renderHomeAssistant(await res.json(), showInputs);
-        } catch {
-            if (haStatus) haStatus.textContent = 'Could not load the Home Assistant settings.';
-        }
-    }
-
-    async function saveHomeAssistant() {
-        try {
-            const res = await fetch('/api/settings/home-assistant', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    url: haUrlInput ? haUrlInput.value : '',
-                    token: haTokenInput ? haTokenInput.value : '',
-                    active: haActiveInput ? haActiveInput.checked : false,
-                })
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                showToast && showToast(data.error || 'Failed to save the Home Assistant settings', 'error');
-                return;
-            }
-            renderHomeAssistant(data, true);
-            showToast && showToast(data.connectionError ? 'Saved, but Home Assistant could not be reached' : 'Home Assistant settings saved',
-                data.connectionError ? 'warning' : 'success');
-            // The sync connects in the background
-            setTimeout(() => { if (haPanel && !haPanel.hidden) loadHomeAssistant(false); }, 2000);
-        } catch {
-            showToast && showToast('Failed to save the Home Assistant settings', 'error');
-        }
-    }
-
-    if (haSaveBtn) haSaveBtn.addEventListener('click', saveHomeAssistant);
-})();
-
-// Sign out
-(function(){
-    const logoutBtn = document.getElementById('logout-btn');
-    if (!logoutBtn) return;
-    logoutBtn.addEventListener('click', async () => {
-        try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { }
-        location.href = '/login.html';
-    });
-})();

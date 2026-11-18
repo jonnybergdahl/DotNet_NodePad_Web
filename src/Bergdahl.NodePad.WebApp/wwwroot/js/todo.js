@@ -1,53 +1,16 @@
-// ToDo lists page, opened from the ToDo entry at the top of the menu.
-// Loaded before app.js; uses its helpers (showModal, showToast, hasUnsavedChanges, saveFile, cancelEdit,
-// loadMenu, setUrl, TODO_HASH) only when the user acts, after both scripts have loaded.
+// To do page (#todo), opened from the To do entry at the top of the menu, and the To do lists card on the
+// Settings page. app.js shows the page and calls loadTodos() when it opens.
+// Loaded before app.js; uses its helpers (showModal, showToast) only when the user acts, after all scripts
+// have loaded, and activePage from shell.js.
 
-const todoNav = document.getElementById('todo-nav');
 const todoView = document.getElementById('todo-view');
-// The note UI that the ToDo page replaces while it is open
-const TODO_REPLACES = ['.toolbar', '#breadcrumbs', '#tags-bar', '#editor'];
 
-let todoViewActive = false;
 let todoLists = [];
 let todoShowOld = false;
 try { todoShowOld = localStorage.getItem('todoShowOld') === 'true'; } catch { /* storage unavailable */ }
 
 function todoEscape(str) {
     return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[s]));
-}
-
-async function showTodoView() {
-    // Same unsaved-changes handling as opening another note
-    if (hasUnsavedChanges()) {
-        const save = await showModal('Unsaved Changes', 'Do you want to save your changes?', false);
-        if (save === true) {
-            await saveFile();
-        } else if (save === null) {
-            return;
-        }
-        cancelEdit();
-    } else if (isEditMode) {
-        cancelEdit();
-    }
-
-    todoViewActive = true;
-    if (location.hash !== TODO_HASH) setUrl(TODO_HASH);
-    TODO_REPLACES.forEach(sel => document.querySelector(sel)?.classList.add('hidden'));
-    todoView.hidden = false;
-    todoNav.classList.add('selected');
-    todoNav.setAttribute('aria-current', 'page');
-    document.querySelectorAll('#menu .menu-item.selected').forEach(el => el.classList.remove('selected'));
-    await loadTodos();
-}
-
-// Called by app.js when a note or folder is opened
-function hideTodoView() {
-    if (!todoViewActive) return;
-    todoViewActive = false;
-    TODO_REPLACES.forEach(sel => document.querySelector(sel)?.classList.remove('hidden'));
-    todoView.hidden = true;
-    todoNav.classList.remove('selected');
-    todoNav.removeAttribute('aria-current');
 }
 
 // ---------------------------------------------------------------------
@@ -120,11 +83,8 @@ function connectTodoEvents() {
 }
 
 function refreshTodoViews() {
-    if (todoViewActive) refreshTodoPage();
-    const settingsPanel = document.getElementById('settings-panel-todo');
-    if (document.getElementById('settings-overlay')?.classList.contains('active') && settingsPanel && !settingsPanel.hidden) {
-        loadSettingsTodoLists();
-    }
+    if (activePage === 'todo') refreshTodoPage();
+    if (activePage === 'settings') loadSettingsTodoLists();
 }
 
 // Reloads the ToDo page without disturbing the user: an item being edited holds the refresh back
@@ -141,7 +101,7 @@ async function refreshTodoPage() {
     } catch {
         return; // The next change or reconnect tries again
     }
-    if (!todoViewActive) return;
+    if (activePage !== 'todo') return;
     if (editing()) {
         todoRefreshPending = true;
         return;
@@ -187,8 +147,8 @@ function renderTodoItem(item) {
             <input type="checkbox" class="todo-check" ${item.done ? 'checked' : ''} aria-label="Done: ${todoEscape(item.text)}">
             <span class="todo-text" tabindex="0" title="Click to edit">${todoEscape(item.text)}</span>
             ${item.done && item.doneDate ? `<span class="todo-date" title="Done ${todoEscape(item.doneDate)}">${todoDateLabel(item.doneDate)}</span>` : ''}
-            <button class="icon-button todo-delete" data-action="delete-item" title="Delete item" aria-label="Delete item">
-                <span class="material-symbols-rounded">close</span>
+            <button class="icon-button todo-delete" type="button" data-action="delete-item" title="Delete item" aria-label="Delete item">
+                <span class="icon">close</span>
             </button>
         </li>`;
 }
@@ -196,15 +156,13 @@ function renderTodoItem(item) {
 function renderTodoCard(list) {
     const items = list.items.length
         ? `<ul class="todo-items">${list.items.map(renderTodoItem).join('')}</ul>`
-        : '<p class="todo-empty">No items yet</p>';
+        : '<p class="todo-empty muted">No items yet</p>';
     return `
-        <section class="todo-card" data-list="${todoEscape(list.name)}">
-            <header class="todo-card-header">
-                <h2 class="todo-card-title">${todoEscape(list.name)}</h2>
-            </header>
+        <section class="card todo-card" data-list="${todoEscape(list.name)}">
+            <header class="card-header"><span class="icon">checklist</span><h2>${todoEscape(list.name)}</h2></header>
             ${items}
             <div class="todo-add">
-                <span class="material-symbols-rounded" aria-hidden="true">add</span>
+                <span class="icon" aria-hidden="true">add</span>
                 <input type="text" class="todo-add-input" placeholder="Add item" aria-label="Add item to ${todoEscape(list.name)}">
             </div>
         </section>`;
@@ -212,22 +170,24 @@ function renderTodoCard(list) {
 
 function renderTodos(focusAddForList) {
     const hidden = todoLists.reduce((sum, l) => sum + (l.hiddenDoneCount || 0), 0);
-    const hiddenNote = !todoShowOld && hidden > 0 ? ` <span class="todo-hidden-count">(${hidden} hidden)</span>` : '';
+    const hiddenNote = !todoShowOld && hidden > 0 ? `<small class="field-hint">${hidden} hidden</small>` : '';
     const body = todoLists.length
         ? `<div class="todo-grid">${todoLists.map(renderTodoCard).join('')}</div>`
-        : `<div class="todo-empty-state">
-               <span class="material-symbols-rounded" aria-hidden="true">checklist</span>
-               <p>No to do lists yet. Create one on the "To do lists" tab in Settings.</p>
+        : `<div class="card">
+               <p class="muted">No to do lists yet. Create one in <a href="#settings">Settings</a>.</p>
            </div>`;
 
     todoView.innerHTML = `
-        <div class="todo-header">
-            <h1 class="todo-title">To do</h1>
-            <label class="todo-toggle">
+        <header class="page-header todo-header">
+            <div>
+                <h1>To do</h1>
+                <p>Click an item to change it.</p>
+            </div>
+            <label class="check todo-toggle">
                 <input type="checkbox" id="todo-show-old" ${todoShowOld ? 'checked' : ''}>
-                Show older done items${hiddenNote}
+                <span>Show older done items${hiddenNote}</span>
             </label>
-        </div>
+        </header>
         ${body}`;
 
     if (focusAddForList) {
@@ -241,14 +201,14 @@ function renderTodos(focusAddForList) {
 // ---------------------------------------------------------------------
 
 // ---------------------------------------------------------------------
-// List management (Settings, "To do lists" tab)
+// List management (Settings page, "To do lists" card)
 // ---------------------------------------------------------------------
 
 const settingsTodoLists = document.getElementById('settings-todo-lists');
 const settingsTodoName = document.getElementById('settings-todo-name');
 const settingsTodoAddBtn = document.getElementById('settings-todo-add-btn');
 
-// Called by app.js when the ToDo lists tab in Settings is shown
+// Called by settings.js when the Settings page is shown
 async function loadSettingsTodoLists() {
     let lists = [];
     try {
@@ -261,24 +221,23 @@ async function loadSettingsTodoLists() {
             const open = list.items.filter(i => !i.done).length;
             return `
                 <li class="settings-todo-list" data-list="${todoEscape(list.name)}">
-                    <span class="material-symbols-rounded" aria-hidden="true">checklist</span>
-                    <span class="settings-todo-name">${todoEscape(list.name)}</span>
-                    <span class="settings-todo-count">${open} open</span>
-                    <button class="icon-button" data-action="rename-list" title="Rename list" aria-label="Rename ${todoEscape(list.name)}">
-                        <span class="material-symbols-rounded">edit</span>
+                    <span class="icon" aria-hidden="true">checklist</span>
+                    <span class="settings-todo-name">${todoEscape(list.name)}<small class="muted">${open} open</small></span>
+                    <button class="icon-button" type="button" data-action="rename-list" title="Rename list" aria-label="Rename ${todoEscape(list.name)}">
+                        <span class="icon">edit</span>
                     </button>
-                    <button class="icon-button danger" data-action="delete-list" title="Delete list" aria-label="Delete ${todoEscape(list.name)}">
-                        <span class="material-symbols-rounded">delete</span>
+                    <button class="icon-button danger" type="button" data-action="delete-list" title="Delete list" aria-label="Delete ${todoEscape(list.name)}">
+                        <span class="icon">delete</span>
                     </button>
                 </li>`;
         }).join('')
-        : '<li class="settings-todo-none">No to do lists yet.</li>';
+        : '<li class="settings-todo-none muted">No to do lists yet.</li>';
 }
 
-// Keeps the ToDo page in step with changes made in Settings
+// Keeps the To do page in step with changes made in Settings
 async function afterTodoListChange() {
     await loadSettingsTodoLists();
-    if (todoViewActive) await loadTodos();
+    if (activePage === 'todo') await loadTodos();
 }
 
 async function addTodoList() {
@@ -369,11 +328,6 @@ function startEditTodoText(textEl) {
     });
     input.addEventListener('blur', () => finish(true));
 }
-
-todoNav.addEventListener('click', e => {
-    e.preventDefault();
-    showTodoView();
-});
 
 todoView.addEventListener('click', e => {
     const action = e.target.closest('[data-action]')?.dataset.action;
