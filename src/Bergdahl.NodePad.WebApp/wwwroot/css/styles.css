@@ -606,12 +606,13 @@
     padding: 0;
 }
 
+/* The checkbox and delete button line up with the first line of the text; the done date goes below it */
 .todo-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-3);
     min-height: 34px;
-    padding: 0 2px 0 var(--space-2);
+    padding: 3px 2px 3px var(--space-2);
     border-radius: var(--radius-sm);
 }
 
@@ -623,14 +624,20 @@
     flex-shrink: 0;
     width: 18px;
     height: 18px;
-    margin: 0;
+    margin: 5px 0 0;
     accent-color: var(--color-accent);
     cursor: pointer;
 }
 
-.todo-text {
+.todo-body {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.todo-text {
+    min-height: 28px;
     padding: 2px 0;
     border: 0;
     background: none;
@@ -653,9 +660,11 @@
 }
 
 .todo-date {
-    flex: none;
+    align-self: flex-start;
+    margin-bottom: 2px;
     color: var(--color-text-muted);
     font-size: 0.75rem;
+    line-height: 1.25;
     white-space: nowrap;
 }
 

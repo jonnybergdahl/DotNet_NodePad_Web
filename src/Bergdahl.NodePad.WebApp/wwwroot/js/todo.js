@@ -137,8 +137,10 @@ function renderTodoItem(item) {
     return `
         <li class="todo-item${item.done ? ' done' : ''}" data-index="${item.index}">
             <input type="checkbox" class="todo-check" ${item.done ? 'checked' : ''} aria-label="Done: ${todoEscape(item.text)}">
-            <button class="todo-text" type="button" data-action="edit-item" title="Edit item">${todoEscape(item.text)}</button>
-            ${item.done && item.doneDate ? `<span class="todo-date" title="Done ${todoEscape(item.doneDate)}">${todoDateLabel(item.doneDate)}</span>` : ''}
+            <span class="todo-body">
+                <button class="todo-text" type="button" data-action="edit-item" title="Edit item">${todoEscape(item.text)}</button>
+                ${item.done && item.doneDate ? `<span class="todo-date" title="Done ${todoEscape(item.doneDate)}">${todoDateLabel(item.doneDate)}</span>` : ''}
+            </span>
             <button class="icon-button todo-delete" type="button" data-action="delete-item" title="Delete item" aria-label="Delete item">
                 <span class="icon">close</span>
             </button>
