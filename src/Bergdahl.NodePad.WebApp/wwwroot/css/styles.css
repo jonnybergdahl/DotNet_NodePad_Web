@@ -596,8 +596,69 @@
 }
 
 .todo-card .card-header h2 {
+    flex: 1;
+    min-width: 0;
+}
+
+/* The whole header strip collapses and expands the list */
+.todo-collapse {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: calc(100% + 2 * var(--space-5));
+    margin: calc(var(--space-3) * -1) calc(var(--space-5) * -1);
+    padding: var(--space-3) var(--space-5);
+    border: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.todo-collapse:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+}
+
+.todo-list-name {
     min-width: 0;
     overflow-wrap: anywhere;
+}
+
+.todo-open-count {
+    display: none;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.todo-collapse .todo-chevron {
+    margin-left: auto;
+    color: var(--color-text-muted);
+    transition: transform var(--transition);
+}
+
+.todo-card.collapsed {
+    padding-bottom: 0;
+}
+
+.todo-card.collapsed .card-header {
+    margin-bottom: 0;
+    border-bottom: 0;
+    border-radius: var(--radius-md);
+}
+
+.todo-card.collapsed .todo-collapse {
+    border-radius: var(--radius-md);
+}
+
+.todo-card.collapsed .todo-open-count {
+    display: inline;
+}
+
+.todo-card.collapsed .todo-chevron {
+    transform: rotate(-90deg);
 }
 
 .todo-items {

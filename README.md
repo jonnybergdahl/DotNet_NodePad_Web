@@ -121,6 +121,7 @@ Click "To do" at the top of the menu to open the To do page. It shows all your t
 - Tick an item's checkbox when it is done. NodePad notes the date, and done items are moved below the open ones, newest first.
 - Click an item's text to change it in the same dialog (Enter saves, Esc cancels), and use the cross that appears when you point at an item to delete it.
 - Done items older than two weeks are hidden, but stay in the list. Tick "Show older done items" to see them again.
+- Click a list's title to collapse it to just the title and its number of open items, and click it again to expand it. The browser remembers which lists are collapsed.
 
 Each list is a Markdown file in the _ToDo folder in Pages, for example _ToDo/Groceries.md:
 

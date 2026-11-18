@@ -9,6 +9,14 @@ let todoLists = [];
 let todoShowOld = false;
 try { todoShowOld = localStorage.getItem('todoShowOld') === 'true'; } catch { /* storage unavailable */ }
 
+// Lists collapsed to their header, by lower-case name, remembered in this browser
+let todoCollapsed = new Set();
+try { todoCollapsed = new Set(JSON.parse(localStorage.getItem('todoCollapsed') || '[]')); } catch { /* storage unavailable */ }
+
+function saveTodoCollapsed() {
+    try { localStorage.setItem('todoCollapsed', JSON.stringify([...todoCollapsed])); } catch { /* storage unavailable */ }
+}
+
 function todoEscape(str) {
     return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[s]));
 }
@@ -108,11 +116,13 @@ async function refreshTodoPage() {
     }
     todoRefreshPending = false;
 
+    // Keeps the focus on a list's Add item or collapse button through the re-render
     const active = document.activeElement;
-    const focusList = active?.classList.contains('todo-add') ? active.closest('.todo-card')?.dataset.list : null;
+    const focusSelector = ['todo-add', 'todo-collapse'].find(c => active?.classList.contains(c));
+    const focusList = focusSelector ? active.closest('.todo-card')?.dataset.list : null;
 
     todoLists = lists;
-    renderTodos(focusList);
+    renderTodos(focusList, focusSelector && `.${focusSelector}`);
 }
 
 function runPendingTodoRefresh() {
@@ -147,25 +157,49 @@ function renderTodoItem(item) {
         </li>`;
 }
 
-function renderTodoCard(list) {
+function renderTodoCard(list, i) {
+    const collapsed = todoCollapsed.has(list.name.toLowerCase());
+    const open = list.items.filter(item => !item.done).length;
     const items = list.items.length
         ? `<ul class="todo-items">${list.items.map(renderTodoItem).join('')}</ul>`
         : '<p class="todo-empty muted">No items yet</p>';
     return `
-        <section class="card todo-card" data-list="${todoEscape(list.name)}">
-            <header class="card-header"><span class="icon">checklist</span><h2>${todoEscape(list.name)}</h2></header>
-            ${items}
-            <button class="todo-add" type="button" data-action="add-item" aria-label="Add item to ${todoEscape(list.name)}">
-                <span class="icon" aria-hidden="true">add</span>Add item
-            </button>
+        <section class="card todo-card${collapsed ? ' collapsed' : ''}" data-list="${todoEscape(list.name)}">
+            <header class="card-header">
+                <h2>
+                    <button class="todo-collapse" type="button" data-action="toggle-list" aria-expanded="${!collapsed}" aria-controls="todo-body-${i}">
+                        <span class="icon" aria-hidden="true">checklist</span>
+                        <span class="todo-list-name">${todoEscape(list.name)}</span>
+                        <small class="todo-open-count muted">${open} open</small>
+                        <span class="icon todo-chevron" aria-hidden="true">expand_more</span>
+                    </button>
+                </h2>
+            </header>
+            <div class="todo-card-body" id="todo-body-${i}" ${collapsed ? 'hidden' : ''}>
+                ${items}
+                <button class="todo-add" type="button" data-action="add-item" aria-label="Add item to ${todoEscape(list.name)}">
+                    <span class="icon" aria-hidden="true">add</span>Add item
+                </button>
+            </div>
         </section>`;
 }
 
-function renderTodos(focusAddForList) {
+function toggleTodoCard(card) {
+    const key = card.dataset.list.toLowerCase();
+    const collapse = !todoCollapsed.has(key);
+    if (collapse) todoCollapsed.add(key);
+    else todoCollapsed.delete(key);
+    saveTodoCollapsed();
+    card.classList.toggle('collapsed', collapse);
+    card.querySelector('.todo-collapse').setAttribute('aria-expanded', String(!collapse));
+    card.querySelector('.todo-card-body').hidden = collapse;
+}
+
+function renderTodos(focusList, focusSelector = '.todo-add') {
     const hidden = todoLists.reduce((sum, l) => sum + (l.hiddenDoneCount || 0), 0);
     const hiddenNote = !todoShowOld && hidden > 0 ? `<small class="field-hint">${hidden} hidden</small>` : '';
     const body = todoLists.length
-        ? `<div class="todo-grid">${todoLists.map(renderTodoCard).join('')}</div>`
+        ? `<div class="todo-grid">${todoLists.map((list, i) => renderTodoCard(list, i)).join('')}</div>`
         : `<div class="card">
                <p class="muted">No to do lists yet. Create one in <a href="#settings">Settings</a>.</p>
            </div>`;
@@ -183,9 +217,9 @@ function renderTodos(focusAddForList) {
         </header>
         ${body}`;
 
-    if (focusAddForList) {
-        const card = [...todoView.querySelectorAll('.todo-card')].find(c => c.dataset.list === focusAddForList);
-        card?.querySelector('.todo-add')?.focus();
+    if (focusList) {
+        const card = [...todoView.querySelectorAll('.todo-card')].find(c => c.dataset.list === focusList);
+        card?.querySelector(focusSelector)?.focus();
     }
 }
 
@@ -365,6 +399,7 @@ todoView.addEventListener('click', e => {
         const index = e.target.closest('.todo-item').dataset.index;
         return todoChange('DELETE', `/api/todos/items?${listQuery(list)}&index=${index}${todoOldParam('&')}`);
     }
+    if (action === 'toggle-list') return toggleTodoCard(card);
     if (action === 'add-item') return addTodoItem(list);
     if (action === 'edit-item') {
         const textEl = e.target.closest('.todo-text');
